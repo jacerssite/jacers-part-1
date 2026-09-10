@@ -520,6 +520,20 @@ function showTesterPanel() {
     levelTitle.className = "setting-title";
     levelTitle.textContent = "Unlock levels";
     form.append(levelTitle);
+    const levelActions = document.createElement("div");
+    levelActions.className = "tester-level-actions";
+    const unlockLevels = (matches: (level: Level) => boolean) => {
+        levels.forEach((level, index) => {
+            if (!matches(level)) return;
+            if (level.secret && level.secretId) localStorage.setItem(`orbit-key-${level.secretId}`, "1");
+            else localStorage.setItem(`orbit-level-${index}`, "1");
+        });
+    };
+    const normalUnlock = createTextButton("Unlock normal levels", () => { unlockLevels((level) => !level.secret && !level.prestige); showTesterPanel(); });
+    const secretUnlock = createTextButton("Unlock secret levels", () => { unlockLevels((level) => Boolean(level.secret)); localStorage.setItem("orbit-secret-unlocked", "1"); showTesterPanel(); });
+    const prestigeUnlock = createTextButton("Unlock prestige levels", () => { unlockLevels((level) => Boolean(level.prestige)); prestigeLevel = Math.max(prestigeLevel, 2); localStorage.setItem("orbit-prestige", String(prestigeLevel)); showTesterPanel(); });
+    levelActions.append(normalUnlock, secretUnlock, prestigeUnlock);
+    form.append(levelActions);
     const prestigeGateLabel = document.createElement("label");
     prestigeGateLabel.innerHTML = `<span>Access Prestige Gate</span>`;
     const prestigeGateInput = document.createElement("input");
@@ -530,13 +544,26 @@ function showTesterPanel() {
     form.append(prestigeGateLabel);
     const levelChoices = document.createElement("div");
     levelChoices.className = "tester-levels";
-    levels.forEach((level, index) => {
-        const label = document.createElement("label");
-        const input = document.createElement("input");
-        input.type = "checkbox"; input.checked = level.secret ? isSecretLevelUnlocked(level) : index === 0 || Number(localStorage.getItem(`orbit-level-${index}`) ?? "0") === 1; input.dataset.level = String(index);
-        label.append(input, document.createTextNode(level.name)); levelChoices.append(label);
+    const levelGroups = [
+        { title: "Normal levels", matches: (level: Level) => !level.secret && !level.prestige },
+        { title: "Secret levels", matches: (level: Level) => Boolean(level.secret) },
+        { title: "Prestige levels", matches: (level: Level) => Boolean(level.prestige) },
+    ];
+    levelGroups.forEach((group) => {
+        const groupPanel = document.createElement("section");
+        groupPanel.className = "tester-level-group";
+        groupPanel.innerHTML = `<b>${group.title}</b>`;
+        levels.forEach((level, index) => {
+            if (!group.matches(level)) return;
+            const label = document.createElement("label");
+            const input = document.createElement("input");
+            input.type = "checkbox"; input.checked = level.secret ? isSecretLevelUnlocked(level) : index === 0 || Number(localStorage.getItem(`orbit-level-${index}`) ?? "0") === 1; input.dataset.level = String(index);
+            label.append(input, document.createTextNode(level.name)); groupPanel.append(label);
+        });
+        levelChoices.append(groupPanel);
     });
     form.append(levelChoices);
+    form.append(createTextButton("Try prestige planet", () => { activePlanet = "prestige"; document.body.classList.add("prestige-theme"); showLevelMenu(); }));
     const customTitle = document.createElement("p");
     customTitle.className = "setting-title";
     customTitle.textContent = "Post a new level";
