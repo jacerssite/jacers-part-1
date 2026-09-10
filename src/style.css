@@ -196,13 +196,21 @@ h1 em { color: #ed7657; font-style: normal; }
 .leaderboard-list b { color: #ed7657; font: .7rem 'DM Mono', monospace; }
 .leaderboard-list span { color: #f3f5e9; }
 .leaderboard-list strong { color: #f6c46e; font: .72rem 'DM Mono', monospace; }
-.maker-cell { border: 1px solid #385267; color: #101b2b; background: #1b3342; cursor: pointer; }
+.maker-cell { position: relative; display: grid; place-items: center; border: 1px solid #385267; color: #101b2b; background: #1b3342; cursor: pointer; }
 .maker-cell.wall { background: #9aa486; }
 .maker-cell.spike, .maker-cell.enemy { background: #ed7657; }
 .maker-cell.gravity, .maker-cell.miniBoss { background: #8b7dff; }
 .maker-cell.portal { background: #6ecbff; }
 .maker-cell.asteroid, .maker-cell.special { background: #f6c46e; }
 .maker-cell.titan { background: #f58bff; }
+.maker-cell.portal::after { content: "↔"; font-size: 1.1rem; font-weight: 700; }
+.maker-cell.spike::after { content: "▲"; color: #fff; }
+.maker-cell.enemy::after { content: "◆"; color: #fff; }
+.maker-cell.asteroid::after { content: "✦"; font-size: 1.1rem; }
+.maker-cell.special { border-color: #fff; box-shadow: inset 0 0 0 2px #f58bff; }
+.maker-cell.special::after { content: "✹"; color: #fff; font-size: 1.1rem; }
+.maker-cell.miniBoss::after { content: "◈"; color: #fff; font-size: 1.1rem; }
+.maker-cell.titan::after { content: "T"; color: #fff; font-weight: 700; }
 .portal { position: absolute; z-index: 4; display: grid; place-items: center; width: 50px; height: 120px; border: 3px solid #6ecbff; border-radius: 50%; color: #101b2b; background: #6ecbff99; box-shadow: 0 0 25px #6ecbff; font-size: 2rem; animation: portal-pulse 1.3s ease-in-out infinite; }
 .player.flipped { transform: rotate(180deg); }
 .wheel-ring { transition: transform .8s cubic-bezier(.2,.8,.2,1); }
