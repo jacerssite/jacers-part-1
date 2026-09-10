@@ -501,7 +501,7 @@ function showTesterLogin() {
     const form = document.createElement("form");
     form.className = "tester-login";
     const input = document.createElement("input");
-    input.type = "text";
+    input.type = "password";
     input.autocomplete = "off";
     input.placeholder = "Keyword";
     input.setAttribute("aria-label", "Tester keyword");
@@ -678,7 +678,7 @@ function showTesterPanel() {
 function buildLevel(levelIndex: number) {
     const level = levels[levelIndex];
     const claimedAsteroids = getClaimedAsteroids(levelIndex);
-    levelAsteroids = level.asteroids.map((index, asteroidIndex) => ({ x: 140 + index * TILE_WIDTH, y: 215 - (index % 2) * 55, claimed: claimedAsteroids.has(asteroidIndex), special: Boolean(level.secret) }));
+    levelAsteroids = level.asteroids.map((index, asteroidIndex) => ({ x: 140 + index * TILE_WIDTH, y: 215 - (index % 2) * 55, claimed: claimedAsteroids.has(asteroidIndex), special: Boolean(level.secret) || (level.specialAsteroids ?? []).includes(index) }));
     levelObstacles = level.walls.map((index, wallIndex) => ({ x: 140 + index * TILE_WIDTH, y: wallIndex % 2 ? 250 : 330, width: wallIndex % 2 ? 105 : 70, height: wallIndex % 2 ? 150 : 70 }));
     levelHazards = [...level.spikes.map((index) => ({ x: 140 + index * TILE_WIDTH, y: 380, width: 76, height: 20, kind: "spikes" as const })), ...level.gravity.map((index) => ({ x: 140 + index * TILE_WIDTH, y: 110, width: 115, height: 250, kind: "gravity" as const }))];
     levelEnemies = level.enemies.map((index) => ({ x: 140 + index * TILE_WIDTH, y: 285, defeated: false }));
@@ -760,7 +760,7 @@ function createWorldObjects() {
     levelAsteroids.forEach((asteroid) => { const element = document.createElement("div"); element.className = `asteroid ${asteroid.special ? "special" : ""} ${asteroid.claimed ? "claimed" : ""}`; element.textContent = asteroid.special ? "✹" : "✦"; element.style.left = `${asteroid.x}px`; element.style.top = `${asteroid.y}px`; world.append(element); });
     levelHazards.forEach((hazard) => { const element = document.createElement("div"); element.className = `hazard ${hazard.kind}`; element.style.left = `${hazard.x}px`; element.style.top = `${hazard.y}px`; element.style.width = `${hazard.width}px`; element.style.height = `${hazard.height}px`; element.setAttribute("aria-label", hazard.kind === "spikes" ? "Spike hazard" : "Gravity zone"); world.append(element); });
     levelEnemies.forEach((enemy) => { const element = document.createElement("div"); element.className = "enemy"; element.style.left = `${enemy.x}px`; element.style.top = `${enemy.y}px`; world.append(element); });
-    levelMiniBosses.forEach((miniBoss) => { const element = document.createElement("div"); element.className = "mini-boss"; element.style.left = `${miniBoss.x}px`; element.style.top = `${miniBoss.y}px`; world.append(element); });
+    levelMiniBosses.forEach((miniBoss) => { const element = document.createElement("div"); element.className = "mini-boss dark-knight"; element.setAttribute("aria-label", "Dark Knight guardian"); element.style.left = `${miniBoss.x}px`; element.style.top = `${miniBoss.y}px`; world.append(element); });
     levelPowerups.forEach((powerup) => { const element = document.createElement("div"); element.className = `powerup ${powerup.kind}`; element.textContent = powerup.kind === "shield" ? "◇" : powerup.kind === "rapid" ? "ϟ" : powerup.kind === "cannon" ? "✦" : "»"; element.style.left = `${powerup.x}px`; element.style.top = `${powerup.y}px`; element.setAttribute("aria-label", `${powerup.kind} powerup`); world.append(element); });
     if (levelKey) { const element = document.createElement("div"); element.className = `level-key ${levelKey.collected ? "collected" : ""}`; element.textContent = "⚿"; element.style.left = `${levelKey.x}px`; element.style.top = `${levelKey.y}px`; element.setAttribute("aria-label", "Secret level key"); world.append(element); }
     (levels[currentLevel].portals ?? []).forEach((index) => { const element = document.createElement("div"); element.className = "portal"; element.textContent = "↔"; element.style.left = `${140 + index * TILE_WIDTH}px`; element.style.top = "175px"; element.setAttribute("aria-label", "Level portal"); world.append(element); });
@@ -813,7 +813,7 @@ function startGameLoop() {
     updateProjectiles(); updateTrail(); updatePlayerPosition(); updatePowerupHud(); checkCollisions();
 }
 
-function updatePlayerPosition() { playerLabel.style.transform = `translate(${playerX}px, ${playerY}px)`; world.style.transform = `translateX(${-Math.max(0, playerX - 180)}px)`; levelLabel.textContent = `SECTOR 0${currentLevel + 1}`; }
+function updatePlayerPosition() { playerLabel.style.transform = `translate(${playerX}px, ${playerY}px) rotate(${shipFlipped ? 180 : 0}deg)`; world.style.transform = `translateX(${-Math.max(0, playerX - 180)}px)`; levelLabel.textContent = `SECTOR 0${currentLevel + 1}`; }
 function shoot() {
     if (!gameActive || cannonTimer <= 0) { if (gameActive) statusLabel.textContent = "Cannon offline. Find the cannon power-up."; return; }
     if (playerShotTimer > 0) return;
@@ -897,13 +897,13 @@ function checkCollisions() {
             if (miniBoss.health <= 0) {
                 miniBoss.defeated = true;
                 document.querySelectorAll(".mini-boss")[index]?.classList.add("defeated");
-                statusLabel.textContent = "Mini-boss shattered. The route is clear.";
+                statusLabel.textContent = "Dark Knight shattered. The route is clear.";
             } else {
-                statusLabel.textContent = `Mini-boss damaged. ${miniBoss.health} hit remaining.`;
+                statusLabel.textContent = `Dark Knight damaged. ${miniBoss.health} hit remaining.`;
             }
         } else if (touching) {
             if (shieldCharges > 0) { shieldCharges--; playerX = miniBoss.x - playerWidth - 8; statusLabel.textContent = "Shield absorbed the mini-boss impact."; }
-            else showGameOver("A mini-boss slammed into your hull.");
+            else showGameOver("A Dark Knight slammed into your hull.");
         }
     });
     levelAsteroids.forEach((asteroid, index) => { if (!asteroid.claimed && Math.abs(playerX + 24 - asteroid.x) < 42 && Math.abs(playerY + 28 - asteroid.y) < 58) { asteroid.claimed = true; const claimedAsteroids = getClaimedAsteroids(currentLevel); claimedAsteroids.add(index); saveClaimedAsteroids(currentLevel, claimedAsteroids); if (asteroid.special) { specialAsteroids++; localStorage.setItem("orbit-special-claims", String(specialAsteroids)); } else { asteroidsClaimed++; localStorage.setItem("orbit-claims", String(asteroidsClaimed)); } claimLabel.textContent = `${levelAsteroids.filter((item) => item.claimed).length} / ${levelAsteroids.length}`; statusLabel.textContent = asteroid.special ? "Special asteroid secured. Spend it in the roll wheel." : boss ? "Asteroid impact. Titan armor is cracking." : "Asteroid claimed. This one is secured permanently."; document.querySelectorAll(".asteroid")[index]?.classList.add("claimed"); damageBoss(); } });

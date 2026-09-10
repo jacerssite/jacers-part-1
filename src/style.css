@@ -105,6 +105,7 @@ h1 em { color: #ed7657; font-style: normal; }
 .projectile { position: absolute; z-index: 6; width: 16px; height: 16px; border: 2px solid #f3f5e9; border-radius: 50%; background: #ed7657; box-shadow: 0 0 18px #ed7657; }
 .player-projectile { position: absolute; z-index: 6; width: 24px; height: 8px; border: 2px solid #fff3bd; border-radius: 10px; background: #f6c46e; box-shadow: 0 0 18px #f6c46e; }
 .mini-boss { position: absolute; z-index: 4; width: 70px; height: 70px; border: 4px solid #ff8fbd; border-radius: 32% 50% 32% 50%; background: #492c56; box-shadow: 0 0 0 8px #ff8fbd22, 0 0 28px #ff8fbd, inset 0 0 16px #b991ff; animation: mini-boss-float 1.7s ease-in-out infinite; }
+.mini-boss.dark-knight { border-color: #f6c46e; background: #241d3d; box-shadow: 0 0 0 8px #f6c46e33, 0 0 32px #f58bff, inset 0 0 18px #6ecbff; }
 .mini-boss::after { position: absolute; top: 21px; left: 21px; width: 20px; height: 20px; content: ''; border-radius: 50%; background: #ffdf72; box-shadow: 0 0 16px #ffdf72; }
 .mini-boss.hit { filter: brightness(2.4); transform: scale(1.12); }
 .mini-boss.defeated { opacity: 0; transform: scale(1.8) rotate(90deg); transition: .45s ease-out; }
@@ -212,11 +213,14 @@ h1 em { color: #ed7657; font-style: normal; }
 .maker-cell.special::after { content: "✹"; color: #fff; font-size: 1.1rem; }
 .maker-cell.miniBoss::after { content: "◈"; color: #fff; font-size: 1.1rem; }
 .maker-cell.titan::after { content: "T"; color: #fff; font-weight: 700; }
-.portal { position: absolute; z-index: 4; display: grid; place-items: center; width: 50px; height: 120px; border: 3px solid #6ecbff; border-radius: 50%; color: #101b2b; background: #6ecbff99; box-shadow: 0 0 25px #6ecbff; font-size: 2rem; animation: portal-pulse 1.3s ease-in-out infinite; }
+.portal { position: absolute; z-index: 4; display: grid; place-items: center; width: 58px; height: 58px; border: 3px solid #fff; border-radius: 18%; color: #fff; background: #f58bff99; box-shadow: 0 0 0 6px #f58bff33, 0 0 28px #f58bff; font-size: 1.7rem; transform: rotate(45deg); animation: portal-pulse 1.3s ease-in-out infinite; }
+.portal::before { position: absolute; inset: 9px; content: ''; border: 2px solid #6ecbff; border-radius: 12%; box-shadow: inset 0 0 12px #6ecbff, 0 0 12px #6ecbff; }
+.portal { text-shadow: 0 0 8px #fff; }
+.portal::after { position: absolute; inset: -8px; content: ''; border: 2px solid #f6c46e; border-radius: 22%; opacity: .7; }
 .player.flipped { transform: rotate(180deg); }
 .wheel-ring { transition: transform .8s cubic-bezier(.2,.8,.2,1); }
 .asteroid-wheel.spinning .wheel-ring { animation: jackpot-spin .9s ease-in-out infinite; }
-@keyframes portal-pulse { 50% { transform: scaleX(.72); opacity: .72; } }
+@keyframes portal-pulse { 50% { transform: rotate(45deg) scaleX(.72); opacity: .72; } }
 @keyframes jackpot-spin { to { transform: rotate(1080deg); } }
 @media (max-width: 600px) { .maker-grid { grid-template-columns: repeat(24, 22px); grid-auto-rows: 22px; gap: 2px; padding: 7px; } .customization-grid, .avatar-grid { grid-template-columns: repeat(2, 1fr); } .credits-list { grid-template-columns: 1fr; } }
 
@@ -342,7 +346,7 @@ h1 em { color: #ed7657; font-style: normal; }
 .player { background: var(--ship-color, #ed7657); box-shadow: 0 0 0 5px color-mix(in srgb, var(--ship-color, #ed7657) 20%, transparent), 0 8px 18px #101b2b88; }
 .ship-flame { background: #f6c46e; }
 .asteroid { position: absolute; z-index: 4; display: grid; place-items: center; width: 48px; height: 48px; border: 2px solid #f6c46e; border-radius: 43% 57% 60% 40%; color: #f6c46e; background: #76564b; box-shadow: 0 0 20px #f6c46e99, inset 7px -5px #b8755699; font-size: 1.4rem; animation: tumble 3s linear infinite; }
-.asteroid.special { border-color: #fff; color: #fff; background: #f58bff; box-shadow: 0 0 28px #fff, inset 7px -5px #b991ff; }
+.asteroid.special { border-color: #fff; color: #fff; background: #f58bff; box-shadow: 0 0 0 5px #f58bff44, 0 0 28px #fff, inset 7px -5px #b991ff; }
 .asteroid.reclaimable { opacity: .52; filter: saturate(.55); }
 .asteroid.claimed { opacity: 0; transform: scale(1.8) rotate(180deg); transition: .3s; }
 .hazard { position: absolute; z-index: 3; pointer-events: none; }
