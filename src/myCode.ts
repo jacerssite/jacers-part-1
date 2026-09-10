@@ -18,7 +18,7 @@ type Boss = { x: number; y: number; health: number; maxHealth: number; defeated:
 type MiniBoss = { x: number; y: number; health: number; maxHealth: number; defeated: boolean };
 type TrailStyle = { name: string; color: string; required: number; effect: "ember" | "comet" | "spark" | "ribbon" | "arc"; secret?: boolean; boss?: boolean; golden?: boolean };
 type AvatarStyle = { name: string; color: string; shape: "classic" | "dart" | "ring" | "blade"; required: number; image?: string; defaultSkin: number; prestige?: number; golden?: boolean; jackpot?: boolean };
-type Level = { name: string; briefing: string; length: number; asteroids: number[]; walls: number[]; enemies: number[]; spikes: number[]; gravity: number[]; portals?: number[]; flip?: number[]; powerups?: { index: number; kind: PowerupKind }[]; key?: number; secretId?: string; miniBosses?: number[]; boss?: boolean; secret?: boolean; prestige?: boolean };
+type Level = { name: string; briefing: string; length: number; asteroids: number[]; walls: number[]; enemies: number[]; spikes: number[]; gravity: number[]; portals?: number[]; flip?: number[]; powerups?: { index: number; kind: PowerupKind }[]; key?: number; secretId?: string; specialAsteroids?: number[]; miniBosses?: number[]; boss?: boolean; bossIndex?: number; secret?: boolean; prestige?: boolean };
 
 const TILE_WIDTH = 180;
 const levels: Level[] = [
@@ -341,21 +341,22 @@ function showLevelMaker() {
     const eraseMode = document.createElement("button"); eraseMode.className = "maker-tool-button"; eraseMode.type = "button"; eraseMode.textContent = "Delete";
     toolbar.append(undo, clear, modeLabel, buildMode, eraseMode);
     const palette = document.createElement("nav"); palette.className = "maker-palette";
-    const tiles = ["empty", "wall", "spike", "gravity", "portal", "asteroid", "enemy"];
+    const tiles = ["empty", "wall", "spike", "gravity", "portal", "asteroid", "special", "enemy", "miniBoss", "titan"];
     let selectedTile = "wall";
     let deleteMode = false;
     const history: string[][] = [];
-    tiles.forEach((tile) => { const button = createTextButton(tile === "empty" ? "Erase" : tile === "wall" ? "Platform" : tile, () => { selectedTile = tile; palette.querySelectorAll("button").forEach((item) => item.classList.toggle("selected", item.dataset.tile === tile)); }); button.dataset.tile = tile; button.classList.toggle("selected", tile === selectedTile); palette.append(button); });
+    const tileLabels: Record<string, string> = { empty: "Erase", wall: "Platform", miniBoss: "Mini boss", titan: "Titan", special: "Special asteroid" };
+    tiles.forEach((tile) => { const button = createTextButton(tileLabels[tile] ?? tile, () => { selectedTile = tile; deleteMode = false; buildMode.classList.add("selected"); eraseMode.classList.remove("selected"); palette.querySelectorAll("button").forEach((item) => item.classList.toggle("selected", item.dataset.tile === tile)); }); button.dataset.tile = tile; button.classList.toggle("selected", tile === selectedTile); palette.append(button); });
     const grid = document.createElement("div"); grid.className = "maker-grid";
-    const cells = Array.from({ length: 144 }, (_, index) => { const cell = document.createElement("button"); cell.type = "button"; cell.className = "maker-cell empty"; cell.dataset.kind = "empty"; cell.textContent = ""; cell.setAttribute("aria-label", `Tile ${index + 1}`); cell.addEventListener("click", () => { history.push(cells.map((item) => item.dataset.kind ?? "empty")); const next = deleteMode ? "empty" : selectedTile; cell.dataset.kind = next; cell.className = `maker-cell ${next}`; cell.textContent = next === "empty" ? "" : next === "asteroid" ? "✦" : next === "enemy" ? "◆" : next === "portal" ? "↔" : next === "gravity" ? "◉" : next === "spike" ? "▲" : "■"; }); grid.append(cell); return cell; });
-    const restore = (snapshot: string[]) => cells.forEach((cell, index) => { const kind = snapshot[index] ?? "empty"; cell.dataset.kind = kind; cell.className = `maker-cell ${kind}`; cell.textContent = kind === "empty" ? "" : kind === "asteroid" ? "✦" : kind === "enemy" ? "◆" : kind === "portal" ? "↔" : kind === "gravity" ? "◉" : kind === "spike" ? "▲" : "■"; });
+    const cells = Array.from({ length: 144 }, (_, index) => { const cell = document.createElement("button"); cell.type = "button"; cell.className = "maker-cell empty"; cell.dataset.kind = "empty"; cell.textContent = ""; cell.setAttribute("aria-label", `Tile ${index + 1}`); cell.addEventListener("click", () => { history.push(cells.map((item) => item.dataset.kind ?? "empty")); const next = deleteMode ? "empty" : selectedTile; cell.dataset.kind = next; cell.className = `maker-cell ${next}`; cell.textContent = next === "empty" ? "" : next === "gravity" ? "" : ""; }); grid.append(cell); return cell; });
+    const restore = (snapshot: string[]) => cells.forEach((cell, index) => { const kind = snapshot[index] ?? "empty"; cell.dataset.kind = kind; cell.className = `maker-cell ${kind}`; cell.textContent = ""; });
     undo.addEventListener("click", () => { const snapshot = history.pop(); if (snapshot) restore(snapshot); });
     clear.addEventListener("click", () => { history.push(cells.map((item) => item.dataset.kind ?? "empty")); restore([]); });
     buildMode.addEventListener("click", () => { deleteMode = false; modeLabel.textContent = "BUILD MODE"; buildMode.classList.add("selected"); eraseMode.classList.remove("selected"); });
     eraseMode.addEventListener("click", () => { deleteMode = true; modeLabel.textContent = "DELETE MODE"; eraseMode.classList.add("selected"); buildMode.classList.remove("selected"); });
     const save = createMenuButton("Save custom route", () => {
-        const level: Level = { name: `Workshop ${Date.now().toString().slice(-4)}`, briefing: "A route assembled in the grid workshop.", length: 24, asteroids: [], walls: [], enemies: [], spikes: [], gravity: [], portals: [], flip: [] };
-        cells.forEach((cell, index) => { const tile = cell.dataset.kind; const column = index % 24; if (tile === "asteroid") level.asteroids.push(column + 1); if (tile === "wall") level.walls.push(column + 1); if (tile === "enemy") level.enemies.push(column + 1); if (tile === "spike") level.spikes.push(column + 1); if (tile === "gravity") level.gravity.push(column + 1); if (tile === "portal") level.portals?.push(column + 1); });
+        const level: Level = { name: `Workshop ${Date.now().toString().slice(-4)}`, briefing: "A route assembled in the grid workshop.", length: 24, asteroids: [], walls: [], enemies: [], spikes: [], gravity: [], portals: [], flip: [], specialAsteroids: [], miniBosses: [] };
+        cells.forEach((cell, index) => { const tile = cell.dataset.kind; const column = index % 24; if (tile === "asteroid" || tile === "special") level.asteroids.push(column + 1); if (tile === "special") level.specialAsteroids?.push(column + 1); if (tile === "wall") level.walls.push(column + 1); if (tile === "enemy") level.enemies.push(column + 1); if (tile === "spike") level.spikes.push(column + 1); if (tile === "gravity") level.gravity.push(column + 1); if (tile === "portal") level.portals?.push(column + 1); if (tile === "miniBoss") level.miniBosses?.push(column + 1); if (tile === "titan") { level.boss = true; level.bossIndex = column + 1; } });
         const saved = JSON.parse(localStorage.getItem("orbit-custom-levels") ?? "[]") as Level[]; saved.push(level); localStorage.setItem("orbit-custom-levels", JSON.stringify(saved)); levels.push(level); showLevelMenu();
     });
     menu.append(toolbar, grid, palette, save, createTextButton("Back to tester", showTesterPanel)); document.body.replaceChildren(menu);
@@ -498,7 +499,7 @@ function showTesterLogin() {
     const form = document.createElement("form");
     form.className = "tester-login";
     const input = document.createElement("input");
-    input.type = "text";
+    input.type = "password";
     input.autocomplete = "off";
     input.placeholder = "Keyword";
     input.setAttribute("aria-label", "Tester keyword");
@@ -675,14 +676,14 @@ function showTesterPanel() {
 function buildLevel(levelIndex: number) {
     const level = levels[levelIndex];
     const claimedAsteroids = getClaimedAsteroids(levelIndex);
-    levelAsteroids = level.asteroids.map((index, asteroidIndex) => ({ x: 140 + index * TILE_WIDTH, y: 215 - (index % 2) * 55, claimed: claimedAsteroids.has(asteroidIndex), special: Boolean(level.secret) }));
+    levelAsteroids = level.asteroids.map((index, asteroidIndex) => ({ x: 140 + index * TILE_WIDTH, y: 215 - (index % 2) * 55, claimed: claimedAsteroids.has(asteroidIndex), special: Boolean(level.secret) || (level.specialAsteroids ?? []).includes(index) }));
     levelObstacles = level.walls.map((index, wallIndex) => ({ x: 140 + index * TILE_WIDTH, y: wallIndex % 2 ? 250 : 330, width: wallIndex % 2 ? 105 : 70, height: wallIndex % 2 ? 150 : 70 }));
     levelHazards = [...level.spikes.map((index) => ({ x: 140 + index * TILE_WIDTH, y: 380, width: 76, height: 20, kind: "spikes" as const })), ...level.gravity.map((index) => ({ x: 140 + index * TILE_WIDTH, y: 110, width: 115, height: 250, kind: "gravity" as const }))];
     levelEnemies = level.enemies.map((index) => ({ x: 140 + index * TILE_WIDTH, y: 285, defeated: false }));
     levelPowerups = (level.powerups ?? []).map((powerup) => ({ x: 140 + powerup.index * TILE_WIDTH, y: 170, kind: powerup.kind, collected: false }));
     levelKey = level.key === undefined ? null : { x: 140 + level.key * TILE_WIDTH, y: 170, collected: localStorage.getItem(`orbit-key-${level.secretId ?? "eclipse"}`) === "1" };
     levelMiniBosses = (level.miniBosses ?? []).map((index) => ({ x: 140 + index * TILE_WIDTH, y: 245, health: 2, maxHealth: 2, defeated: false }));
-    boss = level.boss || level.secret ? { x: 140 + (level.length - 2) * TILE_WIDTH, y: 205, health: level.asteroids.length, maxHealth: level.asteroids.length, defeated: false } : null;
+    boss = level.boss || level.secret ? { x: 140 + (level.bossIndex ?? level.length - 2) * TILE_WIDTH, y: 205, health: level.asteroids.length, maxHealth: level.asteroids.length, defeated: false } : null;
 }
 
 function startGame(levelIndex = currentLevel) {
