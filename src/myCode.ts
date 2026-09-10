@@ -573,6 +573,22 @@ function showTesterPanel() {
     customFields.innerHTML = `<input name="custom-name" placeholder="Level name (optional)"><input name="custom-briefing" placeholder="Briefing (optional)"><input name="custom-length" type="number" min="8" max="60" value="18" placeholder="Length"><input name="custom-asteroids" placeholder="Asteroid tiles: 2,5,8"><input name="custom-walls" placeholder="Wall tiles: 4,9"><input name="custom-enemies" placeholder="Enemy tiles: 6,12"><input name="custom-spikes" placeholder="Spike tiles: 5,10"><input name="custom-gravity" placeholder="Gravity tiles: 8,14"><label><input name="custom-secret" type="checkbox"> Secret route</label><label><input name="custom-boss" type="checkbox"> Add boss</label>`;
     form.append(customFields);
     form.append(createTextButton("Open level maker", showLevelMaker));
+    const resetTitle = document.createElement("p");
+    resetTitle.className = "setting-title tester-reset-title";
+    resetTitle.textContent = "Reset tester data";
+    const resetPanel = document.createElement("div");
+    resetPanel.className = "tester-reset-panel";
+    resetPanel.innerHTML = "<small>Remove all saved progress, unlocks, custom levels, and inventory from this game.</small>";
+    const resetButton = document.createElement("button");
+    resetButton.className = "tester-reset-button";
+    resetButton.type = "button";
+    resetButton.textContent = "Reset all game data";
+    resetButton.addEventListener("click", () => {
+        Array.from({ length: localStorage.length }, (_, index) => localStorage.key(index)).filter((key): key is string => Boolean(key?.startsWith("orbit-"))).forEach((key) => localStorage.removeItem(key));
+        window.location.reload();
+    });
+    resetPanel.append(resetButton);
+    form.append(resetTitle, resetPanel);
     const apply = document.createElement("button");
     apply.className = "menu-button"; apply.type = "submit"; apply.textContent = "Apply tester changes";
     form.append(apply);

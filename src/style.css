@@ -273,6 +273,10 @@ h1 em { color: #ed7657; font-style: normal; }
 .tester-level-actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
 .tester-level-actions .text-button { min-height: 42px; padding: 8px; border: 1px solid #385267; color: #c4d1bd; background: #101b2b; font-size: .62rem; }
 .tester-level-actions .text-button:hover, .tester-level-actions .text-button:focus-visible { border-color: #f6c46e; color: #f6c46e; outline: none; }
+.tester-reset-panel { display: grid; gap: 10px; padding: 12px; border: 1px solid #ed765766; background: #3a202b66; text-align: left; }
+.tester-reset-panel small { color: #c4d1bd; font: .62rem/1.5 'DM Mono', monospace; }
+.tester-reset-button { min-height: 42px; padding: 8px 12px; border: 1px solid #ed7657; color: #f3f5e9; background: #542b36; font: 600 .68rem 'Space Grotesk', sans-serif; cursor: pointer; }
+.tester-reset-button:hover, .tester-reset-button:focus-visible { border-color: #f6c46e; color: #f6c46e; outline: none; }
 .tester-levels label { display: flex; align-items: center; gap: 7px; color: #c4d1bd; font: .63rem 'DM Mono', monospace; }
 .tester-levels input { accent-color: #f6c46e; }
 .setting-title { margin: 20px 0 12px; color: #f6c46e; font: .7rem 'DM Mono', monospace; letter-spacing: 2px; text-transform: uppercase; }
