@@ -111,6 +111,8 @@ let levelMiniBosses: MiniBoss[] = [];
 let boss: Boss | null = null;
 let projectiles: Projectile[] = [];
 let trailElement: HTMLElement[] = [];
+let trailPositions: { x: number; y: number }[] = [];
+let trailDirection = 1;
 let projectileTimer = 0;
 let trailTimer = 0;
 let shieldCharges = 0;
@@ -499,7 +501,7 @@ function showTesterLogin() {
     const form = document.createElement("form");
     form.className = "tester-login";
     const input = document.createElement("input");
-    input.type = "password";
+    input.type = "text";
     input.autocomplete = "off";
     input.placeholder = "Keyword";
     input.setAttribute("aria-label", "Tester keyword");
@@ -676,20 +678,20 @@ function showTesterPanel() {
 function buildLevel(levelIndex: number) {
     const level = levels[levelIndex];
     const claimedAsteroids = getClaimedAsteroids(levelIndex);
-    levelAsteroids = level.asteroids.map((index, asteroidIndex) => ({ x: 140 + index * TILE_WIDTH, y: 215 - (index % 2) * 55, claimed: claimedAsteroids.has(asteroidIndex), special: Boolean(level.secret) || (level.specialAsteroids ?? []).includes(index) }));
+    levelAsteroids = level.asteroids.map((index, asteroidIndex) => ({ x: 140 + index * TILE_WIDTH, y: 215 - (index % 2) * 55, claimed: claimedAsteroids.has(asteroidIndex), special: Boolean(level.secret) }));
     levelObstacles = level.walls.map((index, wallIndex) => ({ x: 140 + index * TILE_WIDTH, y: wallIndex % 2 ? 250 : 330, width: wallIndex % 2 ? 105 : 70, height: wallIndex % 2 ? 150 : 70 }));
     levelHazards = [...level.spikes.map((index) => ({ x: 140 + index * TILE_WIDTH, y: 380, width: 76, height: 20, kind: "spikes" as const })), ...level.gravity.map((index) => ({ x: 140 + index * TILE_WIDTH, y: 110, width: 115, height: 250, kind: "gravity" as const }))];
     levelEnemies = level.enemies.map((index) => ({ x: 140 + index * TILE_WIDTH, y: 285, defeated: false }));
     levelPowerups = (level.powerups ?? []).map((powerup) => ({ x: 140 + powerup.index * TILE_WIDTH, y: 170, kind: powerup.kind, collected: false }));
     levelKey = level.key === undefined ? null : { x: 140 + level.key * TILE_WIDTH, y: 170, collected: localStorage.getItem(`orbit-key-${level.secretId ?? "eclipse"}`) === "1" };
     levelMiniBosses = (level.miniBosses ?? []).map((index) => ({ x: 140 + index * TILE_WIDTH, y: 245, health: 2, maxHealth: 2, defeated: false }));
-    boss = level.boss || level.secret ? { x: 140 + (level.bossIndex ?? level.length - 2) * TILE_WIDTH, y: 205, health: level.asteroids.length, maxHealth: level.asteroids.length, defeated: false } : null;
+    boss = level.boss || level.secret ? { x: 140 + (level.length - 2) * TILE_WIDTH, y: 205, health: level.asteroids.length, maxHealth: level.asteroids.length, defeated: false } : null;
 }
 
 function startGame(levelIndex = currentLevel) {
     currentLevel = levelIndex;
     buildLevel(currentLevel);
-    playerX = 120; playerY = 300; verticalSpeed = 0; jumpCount = 0; projectiles = []; trailElement = []; projectileTimer = 0; trailTimer = 0; playerShotTimer = 0; shieldCharges = 0; boostTimer = 0; rapidTimer = 0; rapidUntil = 0; cannonTimer = 0; gameStarted = false; gameActive = true; previousPlayerY = playerY; levelStartedAt = performance.now(); elapsedMilliseconds = 0; shipFlipped = false;
+    playerX = 120; playerY = 300; verticalSpeed = 0; jumpCount = 0; projectiles = []; trailElement = []; trailPositions = []; trailDirection = 1; projectileTimer = 0; trailTimer = 0; playerShotTimer = 0; shieldCharges = 0; boostTimer = 0; rapidTimer = 0; rapidUntil = 0; cannonTimer = 0; gameStarted = false; gameActive = true; previousPlayerY = playerY; levelStartedAt = performance.now(); elapsedMilliseconds = 0; shipFlipped = false;
     document.body.innerHTML = "";
     createGameShell(); createPlayer(); createWorldObjects(); createControls(); startGameLoop();
 }
@@ -831,7 +833,7 @@ function createTrail() {
     if (trailElement.length === 0) {
         trailElement = Array.from({ length: 5 }, (_, index) => {
             const element = document.createElement("i");
-            element.className = `trail-particle trail-effect-${trail.effect}`;
+            element.className = `trail-particle trail-effect-${trail.effect} ${index === 0 ? "trail-head" : ""}`;
             element.style.setProperty("--trail-delay", `${index * 90}ms`);
             world.append(element);
             return element;
@@ -841,9 +843,17 @@ function createTrail() {
     updateTrail();
 }
 function updateTrail() {
+    const anchor = { x: playerX + (playerWidth - 14) / 2, y: playerY + playerHeight - 2 };
+    const last = trailPositions[0];
+    if (last && anchor.x !== last.x) trailDirection = anchor.x > last.x ? 1 : -1;
+    if (!last || last.x !== anchor.x || last.y !== anchor.y) trailPositions.unshift(anchor);
+    trailPositions = trailPositions.slice(0, 24);
     trailElement.forEach((element, index) => {
-        element.style.left = `${playerX + (playerWidth - 14) / 2 - index * 6}px`;
-        element.style.top = `${playerY + playerHeight - 2 + index * 3}px`;
+        const point = trailPositions[Math.min(index * 2, trailPositions.length - 1)] ?? anchor;
+        const tailX = trailDirection > 0 ? Math.min(point.x, anchor.x) : Math.max(point.x, anchor.x);
+        const tailY = Math.max(point.y, anchor.y + index * 2);
+        element.style.left = `${index === 0 ? anchor.x : tailX}px`;
+        element.style.top = `${index === 0 ? anchor.y : tailY}px`;
     });
 }
 function updateProjectiles() { projectiles = projectiles.filter((projectile) => { projectile.x += projectile.vx; projectile.y += projectile.vy; projectile.element.style.transform = `translate(${projectile.x}px, ${projectile.y}px)`; const box = { x: projectile.x, y: projectile.y, width: 16, height: 16 }; const obstacle = levelObstacles.find((item) => intersects(box, item)); if (obstacle) { createSplash(projectile.x, projectile.y); projectile.element.remove(); return false; } if (projectile.owner === "player") { const enemy = levelEnemies.find((item) => !item.defeated && intersects(box, { x: item.x, y: item.y, width: 48, height: 48 })); if (enemy) { enemy.defeated = true; document.querySelectorAll(".enemy")[levelEnemies.indexOf(enemy)]?.classList.add("defeated"); projectile.element.remove(); statusLabel.textContent = "Cannon hit. Sentry disabled."; return false; } const miniBoss = levelMiniBosses.find((item) => !item.defeated && intersects(box, { x: item.x, y: item.y, width: 70, height: 70 })); if (miniBoss) { miniBoss.health--; projectile.element.remove(); if (miniBoss.health <= 0) { miniBoss.defeated = true; document.querySelectorAll(".mini-boss")[levelMiniBosses.indexOf(miniBoss)]?.classList.add("defeated"); statusLabel.textContent = "Cannon fire shattered the mini-boss."; } else statusLabel.textContent = `Cannon hit. ${miniBoss.health} hit remaining.`; return false; } if (boss && !boss.defeated && intersects(box, { x: boss.x, y: boss.y, width: 128, height: 150 })) { projectile.element.remove(); damageBoss(); return false; } } else if (intersects(box, { x: playerX, y: playerY, width: playerWidth, height: playerHeight })) { projectile.element.remove(); if (shieldCharges > 0) { shieldCharges--; statusLabel.textContent = "Shield absorbed the impact."; return false; } showGameOver("A sentry round cracked your hull."); return false; } if (projectile.x < playerX - 700 || projectile.x > playerX + 700 || projectile.y < -100 || projectile.y > 500) { projectile.element.remove(); return false; } return true; }); }
