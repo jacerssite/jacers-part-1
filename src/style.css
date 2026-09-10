@@ -52,6 +52,7 @@ h1 em { color: #ed7657; font-style: normal; }
 .menu-actions { display: grid; grid-template-columns: repeat(2, minmax(156px, 1fr)); gap: 10px; width: min(340px, 90vw); }
 .secondary-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 18px; margin-top: 18px; }
 .level-list { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; max-width: 520px; margin-bottom: 18px; }
+.level-menu { align-content: start; }
 .level-button { display: grid; gap: 4px; min-width: 190px; text-align: left; }
 .level-button small { color: #294254; font-size: .72rem; font-weight: 500; }
 .level-button:hover small, .level-button:focus-visible small { color: #f3f5e9; }
