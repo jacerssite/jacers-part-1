@@ -87,6 +87,7 @@ h1 em { color: #ed7657; font-style: normal; }
 .player.ship-dart { border-radius: 65% 25% 65% 25%; transform-origin: center; }
 .player.ship-ring { border-radius: 50%; box-shadow: 0 0 0 7px var(--ship-color, #ed7657), 0 0 22px var(--ship-color, #ed7657); }
 .player.ship-blade { border-radius: 8% 70% 8% 70%; transform: skewX(-12deg); }
+.player:has(.ship-art-image) { border-color: transparent; border-radius: 0; background: transparent; box-shadow: none; }
 .player .ship-art, .player .ship-art-image { position: absolute; inset: -7px; width: 56px; height: 70px; object-fit: contain; pointer-events: none; }
 .ship-art-image { position: relative; display: block; isolation: isolate; background: var(--ship-image) center / contain no-repeat; }
 .ship-art-image::after { position: absolute; inset: 0; content: ''; background: var(--ship-color); opacity: .82; mix-blend-mode: color; -webkit-mask: var(--ship-image) center / contain no-repeat; mask: var(--ship-image) center / contain no-repeat; pointer-events: none; }

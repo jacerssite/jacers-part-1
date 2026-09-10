@@ -661,7 +661,7 @@ function createPlayer() {
     const skin = skins[selectedSkin] ?? skins[0];
     const avatar = avatars[selectedAvatar] ?? avatars[0];
     const shipArt = avatar.image ?? skin.image;
-    playerLabel.className = `player ship-${skin.shape} avatar-${selectedAvatar}`; playerLabel.style.setProperty("--ship-color", skin.color); playerLabel.innerHTML = `${shipArt ? createShipArtMarkup(shipArt, avatar.name, skin.color) : "<span class=\"ship-window\"></span>"}<span class="ship-flame"></span>`; world.append(playerLabel); updatePlayerPosition();
+    playerLabel.className = `player ${shipArt ? "" : `ship-${skin.shape}`} avatar-${selectedAvatar}`; playerLabel.style.setProperty("--ship-color", skin.color); playerLabel.innerHTML = `${shipArt ? createShipArtMarkup(shipArt, avatar.name, skin.color) : "<span class=\"ship-window\"></span>"}<span class="ship-flame"></span>`; world.append(playerLabel); updatePlayerPosition();
 }
 
 function createWorldObjects() {
