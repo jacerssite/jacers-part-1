@@ -16,7 +16,7 @@ type Powerup = { x: number; y: number; kind: PowerupKind; collected: boolean };
 type LevelKey = { x: number; y: number; collected: boolean };
 type Boss = { x: number; y: number; health: number; maxHealth: number; defeated: boolean };
 type MiniBoss = { x: number; y: number; health: number; maxHealth: number; defeated: boolean };
-type TrailStyle = { name: string; color: string; required: number; effect: "ember" | "comet" | "spark" | "ribbon" | "arc"; secret?: boolean; boss?: boolean; golden?: boolean };
+type TrailStyle = { name: string; color: string; required: number; effect: "ember" | "comet" | "spark" | "ribbon" | "arc"; secret?: boolean; boss?: boolean; golden?: boolean; prestige?: number };
 type AvatarStyle = { name: string; color: string; shape: "classic" | "dart" | "ring" | "blade"; required: number; image?: string; defaultSkin: number; prestige?: number; golden?: boolean; jackpot?: boolean };
 type Level = { name: string; briefing: string; length: number; asteroids: number[]; walls: number[]; enemies: number[]; spikes: number[]; gravity: number[]; portals?: number[]; flip?: number[]; powerups?: { index: number; kind: PowerupKind }[]; key?: number; secretId?: string; specialAsteroids?: number[]; miniBosses?: number[]; boss?: boolean; bossIndex?: number; secret?: boolean; prestige?: boolean };
 
@@ -29,18 +29,22 @@ const levels: Level[] = [
     { name: "Last Light", briefing: "The final claim. Bring seven asteroids home through the storm.", length: 23, asteroids: [2, 5, 8, 11, 14, 17, 20], walls: [4, 7, 10, 13, 16, 19], enemies: [6, 12, 15, 21], spikes: [5, 9, 14, 18], gravity: [8, 11, 17, 20] },
     { name: "Ion Cathedral", briefing: "The cathedral hums with static. Break through its sentry choir.", length: 24, asteroids: [2, 5, 8, 12, 15, 19, 22], walls: [4, 7, 11, 14, 18, 21], enemies: [6, 13, 20], spikes: [5, 10, 16, 22], gravity: [9, 17], powerups: [{ index: 3, kind: "shield" }, { index: 16, kind: "cannon" }], miniBosses: [11] },
     { name: "Neon Graveyard", briefing: "Old ships drift here. Their guardians do not want you leaving.", length: 27, asteroids: [2, 5, 9, 12, 16, 20, 24], walls: [4, 8, 11, 15, 19, 23], enemies: [6, 14, 21], spikes: [5, 10, 17, 22], gravity: [7, 18], powerups: [{ index: 7, kind: "boost" }, { index: 18, kind: "shield" }, { index: 23, kind: "cannon" }], miniBosses: [9, 20] },
-    { name: "Crystal Run", briefing: "The crystal storm bends every shot. Keep moving and trust your thrusters.", length: 30, asteroids: [3, 6, 10, 13, 17, 21, 25, 28], walls: [5, 9, 12, 16, 20, 24, 27], enemies: [7, 15, 23], spikes: [6, 11, 18, 26], gravity: [8, 14, 22], powerups: [{ index: 5, kind: "rapid" }, { index: 14, kind: "boost" }, { index: 25, kind: "shield" }], key: 18, secretId: "eclipse", miniBosses: [10, 22] },
+    { name: "Crystal Run", briefing: "The crystal storm bends every shot. Keep moving and trust your thrusters.", length: 30, asteroids: [3, 6, 10, 13, 17, 21, 25, 28], walls: [5, 9, 12, 16, 20, 24, 27], enemies: [7, 15, 23], spikes: [6, 11, 18, 26], gravity: [8, 14, 22], powerups: [{ index: 5, kind: "rapid" }, { index: 14, kind: "boost" }, { index: 25, kind: "shield" }], secretId: "eclipse", miniBosses: [10, 22] },
     { name: "Titan's Wake", briefing: "The titan is waiting. Every asteroid you claim tears through its armor.", length: 33, asteroids: [3, 6, 9, 12, 15, 18, 21, 24, 28, 30], walls: [5, 8, 11, 14, 17, 20, 23, 26, 29], enemies: [7, 16, 25], spikes: [6, 13, 19, 27], gravity: [10, 18, 24], powerups: [{ index: 4, kind: "shield" }, { index: 15, kind: "rapid" }, { index: 25, kind: "boost" }], miniBosses: [12, 24], boss: true },
     { name: "Solar Foundry", briefing: "The foundry burns hot. Ride the safe gaps between its moving sentries.", length: 28, asteroids: [2, 6, 10, 14, 18, 22, 26], walls: [4, 8, 12, 16, 20, 24], enemies: [7, 15, 23], spikes: [5, 11, 17, 25], gravity: [9, 19], powerups: [{ index: 3, kind: "shield" }, { index: 13, kind: "boost" }, { index: 21, kind: "cannon" }], miniBosses: [14], boss: true },
-    { name: "Moonlit Ruins", briefing: "The ruins hide a second beacon. Search every dark corner for the signal.", length: 31, asteroids: [3, 7, 11, 15, 19, 23, 27], walls: [5, 9, 13, 17, 21, 25], enemies: [6, 14, 22, 28], spikes: [8, 12, 20, 26], gravity: [10, 18, 24], powerups: [{ index: 6, kind: "cannon" }, { index: 16, kind: "shield" }, { index: 26, kind: "boost" }], key: 24, secretId: "nebula", miniBosses: [11, 24] },
+    { name: "Moonlit Ruins", briefing: "The ruins hide a second beacon. Search every dark corner for the signal.", length: 31, asteroids: [3, 7, 11, 15, 19, 23, 27], walls: [5, 9, 13, 17, 21, 25], enemies: [6, 14, 22, 28], spikes: [8, 12, 20, 26], gravity: [10, 18, 24], powerups: [{ index: 6, kind: "cannon" }, { index: 16, kind: "shield" }, { index: 26, kind: "boost" }], secretId: "nebula", miniBosses: [11, 24] },
     { name: "Event Horizon", briefing: "One last crossing before the vault. Nothing escapes the horizon unchanged.", length: 36, asteroids: [3, 7, 11, 15, 19, 23, 27, 31, 34], walls: [5, 9, 13, 17, 21, 25, 29, 33], enemies: [6, 14, 22, 30], spikes: [8, 12, 20, 28, 34], gravity: [10, 18, 26, 32], powerups: [{ index: 4, kind: "boost" }, { index: 16, kind: "shield" }, { index: 28, kind: "rapid" }], miniBosses: [12, 26] },
-    { name: "Eclipse Vault", briefing: "A hidden route beyond the fourth asteroid. Find the vault and claim its impossible light.", length: 19, asteroids: [2, 4, 7, 10, 13, 16], walls: [3, 6, 9, 12, 15], enemies: [5, 11, 17], spikes: [4, 8, 14], gravity: [7, 16], powerups: [{ index: 6, kind: "shield" }, { index: 14, kind: "boost" }], secret: true, secretId: "eclipse" },
+    { name: "Eclipse Vault", briefing: "A hidden route beyond the fourth asteroid. Find the vault and claim its impossible light.", length: 19, asteroids: [2, 4, 7, 10, 13, 16], walls: [3, 6, 9, 12, 15], enemies: [5, 11, 17], spikes: [4, 8, 14], gravity: [7, 16], powerups: [{ index: 6, kind: "shield" }, { index: 14, kind: "boost" }], specialAsteroids: [2, 4, 7, 10, 13, 16], secret: true, secretId: "eclipse" },
     { name: "Comet Nursery", briefing: "Young comets cut across the route. Claim their bright cores and keep your aim ready.", length: 26, asteroids: [2, 6, 10, 14, 18, 22], walls: [4, 8, 12, 16, 20], enemies: [7, 13, 19, 24], spikes: [5, 11, 17, 23], gravity: [9, 21], powerups: [{ index: 3, kind: "cannon" }, { index: 15, kind: "shield" }], miniBosses: [18] },
     { name: "Prism Citadel", briefing: "The citadel's walls fold light around its guardians. Break the second titan before the beacon.", length: 32, asteroids: [3, 7, 11, 15, 19, 23, 27, 30], walls: [5, 9, 13, 17, 21, 25, 29], enemies: [6, 14, 22, 28], spikes: [8, 12, 20, 26], gravity: [10, 18, 24], powerups: [{ index: 4, kind: "shield" }, { index: 16, kind: "cannon" }, { index: 26, kind: "boost" }], miniBosses: [12, 24], boss: true },
-    { name: "Afterglow Station", briefing: "A final station waits beyond the old lanes. Every system is live and every claim counts.", length: 35, asteroids: [3, 7, 11, 15, 19, 23, 27, 31, 33], walls: [5, 9, 13, 17, 21, 25, 29], enemies: [6, 14, 22, 30], spikes: [8, 12, 20, 28, 33], gravity: [10, 18, 26, 32], powerups: [{ index: 4, kind: "cannon" }, { index: 16, kind: "shield" }, { index: 28, kind: "boost" }], miniBosses: [12, 26], boss: true, key: 27, secretId: "archive" },
-    { name: "Nebula Hollow", briefing: "A moonlit key opens this silent passage. Drift through the dark and find the hidden beacon.", length: 25, asteroids: [3, 7, 11, 15, 19, 22], walls: [5, 9, 13, 17, 21], enemies: [6, 14, 20], spikes: [8, 12, 18], gravity: [10, 16, 22], powerups: [{ index: 4, kind: "shield" }, { index: 14, kind: "cannon" }], secret: true, secretId: "nebula" },
-    { name: "Black Hole Archive", briefing: "The last key points into the archive. Survive the spiral and face the keeper.", length: 30, asteroids: [3, 7, 11, 15, 19, 23, 27], walls: [5, 9, 13, 17, 21, 25], enemies: [6, 14, 22, 28], spikes: [8, 12, 20, 26], gravity: [10, 18, 24], powerups: [{ index: 4, kind: "cannon" }, { index: 16, kind: "shield" }, { index: 25, kind: "boost" }], miniBosses: [12, 24], boss: true, secret: true, secretId: "archive" },
+    { name: "Afterglow Station", briefing: "A final station waits beyond the old lanes. Every system is live and every claim counts.", length: 35, asteroids: [3, 7, 11, 15, 19, 23, 27, 31, 33], walls: [5, 9, 13, 17, 21, 25, 29], enemies: [6, 14, 22, 30], spikes: [8, 12, 20, 28, 33], gravity: [10, 18, 26, 32], powerups: [{ index: 4, kind: "cannon" }, { index: 16, kind: "shield" }, { index: 28, kind: "boost" }], miniBosses: [12, 26], boss: true, secretId: "archive" },
+    { name: "Nebula Hollow", briefing: "A moonlit key opens this silent passage. Drift through the dark and find the hidden beacon.", length: 25, asteroids: [3, 7, 11, 15, 19, 22], walls: [5, 9, 13, 17, 21], enemies: [6, 14, 20], spikes: [8, 12, 18], gravity: [10, 16, 22], powerups: [{ index: 4, kind: "shield" }, { index: 14, kind: "cannon" }], specialAsteroids: [3, 7, 11, 15, 19, 22], secret: true, secretId: "nebula" },
+    { name: "Black Hole Archive", briefing: "The last key points into the archive. Survive the spiral and face the keeper.", length: 30, asteroids: [3, 7, 11, 15, 19, 23, 27], walls: [5, 9, 13, 17, 21, 25], enemies: [6, 14, 22, 28], spikes: [8, 12, 20, 26], gravity: [10, 18, 24], powerups: [{ index: 4, kind: "cannon" }, { index: 16, kind: "shield" }, { index: 25, kind: "boost" }], miniBosses: [12, 24], boss: true, secret: true, secretId: "archive", specialAsteroids: [3, 7, 11, 15, 19, 23, 27] },
     { name: "Prestige Gate", briefing: "The gatekeeper tests every route. Defeat it before claiming your next prestige.", length: 28, asteroids: [3, 7, 11, 15, 19, 23], walls: [5, 9, 13, 17, 21], enemies: [6, 14, 22], spikes: [8, 12, 20], gravity: [10, 18], powerups: [{ index: 4, kind: "shield" }, { index: 16, kind: "cannon" }], miniBosses: [12], boss: true, secret: true, secretId: "prestige-gate" },
+    // Prestige-exclusive secret levels with prestige-only keys
+    { name: "Stellar Sanctum", briefing: "A sanctuary hidden in the ringed planet's deep orbit. Only the worthy can claim its stellar core.", length: 28, asteroids: [3, 7, 11, 15, 19, 23, 26], walls: [5, 9, 13, 17, 21], enemies: [6, 14, 22], spikes: [8, 12, 20, 25], gravity: [10, 18], powerups: [{ index: 5, kind: "shield" }, { index: 17, kind: "cannon" }], key: 12, secretId: "stellar-sanctum", specialAsteroids: [3, 7, 11, 15, 19, 23, 26], secret: true, prestige: true, miniBosses: [14] },
+    { name: "Quantum Depths", briefing: "Reality bends in the quantum realm. Claim the fragments before the tunnel collapses.", length: 32, asteroids: [3, 8, 12, 16, 20, 24, 28, 31], walls: [5, 10, 14, 18, 22, 26, 30], enemies: [7, 17, 25], spikes: [6, 13, 21, 29], gravity: [11, 19, 27], powerups: [{ index: 6, kind: "rapid" }, { index: 18, kind: "boost" }, { index: 28, kind: "shield" }], key: 16, secretId: "quantum-depths", specialAsteroids: [3, 8, 12, 16, 20, 24, 28, 31], secret: true, prestige: true, miniBosses: [13, 26] },
+    { name: "Infinity Spiral", briefing: "The spiral stretches beyond infinity. Navigate the impossible geometry and find the Infinity Key.", length: 35, asteroids: [4, 9, 13, 17, 21, 25, 29, 32, 34], walls: [6, 10, 14, 18, 22, 26, 30, 33], enemies: [8, 18, 28], spikes: [7, 14, 22, 30, 34], gravity: [12, 20, 28], powerups: [{ index: 7, kind: "cannon" }, { index: 19, kind: "shield" }, { index: 30, kind: "boost" }], key: 18, secretId: "infinity-spiral", specialAsteroids: [4, 9, 13, 17, 21, 25, 29, 32, 34], secret: true, prestige: true, miniBosses: [15, 28], boss: true },
 ];
 
 const skins: { name: string; color: string; shape: "classic" | "dart" | "ring" | "blade"; required: number; image?: string; boss?: boolean; secret?: boolean; prestige?: number; golden?: boolean }[] = [
@@ -62,6 +66,15 @@ const skins: { name: string; color: string; shape: "classic" | "dart" | "ring" |
     { name: "Horizon Pink", color: "#ff72c8", shape: "dart", required: 78 },
     { name: "Vault Prism", color: "#d6a8ff", shape: "blade", required: 0, secret: true },
     { name: "Golden Body", color: "#ffe36e", shape: "classic", required: 0, golden: true },
+    // Prestige-exclusive skins from special rolls
+    { name: "Stellar Crown", color: "#ffcc33", shape: "classic", required: 0, prestige: 1 },
+    { name: "Nebula Dancer", color: "#b24bff", shape: "dart", required: 0, prestige: 1 },
+    { name: "Quantum Ring", color: "#00ffcc", shape: "ring", required: 0, prestige: 1 },
+    { name: "Void Edge", color: "#ff0099", shape: "blade", required: 0, prestige: 2 },
+    { name: "Cosmic Pearl", color: "#e0e0e0", shape: "classic", required: 0, prestige: 2 },
+    { name: "Eclipse Dancer", color: "#9933ff", shape: "dart", required: 0, prestige: 2 },
+    { name: "Infinity Gate", color: "#00ff66", shape: "ring", required: 0, prestige: 3 },
+    { name: "Stellar Blade", color: "#ff6600", shape: "blade", required: 0, prestige: 3 },
 ];
 
 const trails: TrailStyle[] = [
@@ -78,6 +91,15 @@ const trails: TrailStyle[] = [
     { name: "Prism Arc", color: "#8de7ff", required: 98, effect: "arc" },
     { name: "Jackpot Spark", color: "#ffe36e", required: 0, effect: "spark", secret: true },
     { name: "Golden Trail", color: "#fff0a1", required: 0, effect: "arc", golden: true },
+    // Prestige-exclusive trails from special rolls
+    { name: "Stellar Beam", color: "#ffcc33", required: 0, effect: "arc", prestige: 1 },
+    { name: "Quantum Wave", color: "#b24bff", required: 0, effect: "ribbon", prestige: 1 },
+    { name: "Cosmic Spark", color: "#00ffcc", required: 0, effect: "spark", prestige: 1 },
+    { name: "Void Ribbon", color: "#ff0099", required: 0, effect: "ribbon", prestige: 2 },
+    { name: "Eclipse Arc", color: "#9933ff", required: 0, effect: "arc", prestige: 2 },
+    { name: "Infinite Comet", color: "#e0e0e0", required: 0, effect: "comet", prestige: 2 },
+    { name: "Stellar Ribbon", color: "#00ff66", required: 0, effect: "ribbon", prestige: 3 },
+    { name: "Infinity Spark", color: "#ff6600", required: 0, effect: "spark", prestige: 3 },
 ];
 
 const avatars: AvatarStyle[] = [
@@ -90,6 +112,14 @@ const avatars: AvatarStyle[] = [
     { name: "Prestige Halo", color: "#b8fff1", shape: "ring", required: 0, defaultSkin: 2, prestige: 2, image: "/src/assets/ships/prestige-halo.png" },
     { name: "Prestige Nova", color: "#ffb6e6", shape: "blade", required: 0, defaultSkin: 3, prestige: 3, image: "/src/assets/ships/prestige-nova.png" },
     { name: "Golden Pilot", color: "#ffe36e", shape: "classic", required: 0, defaultSkin: 17, golden: true, image: "/src/assets/ships/golden-crown.svg" },
+    // Prestige-exclusive avatars from special rolls
+    { name: "Stellar Guard", color: "#ffcc33", shape: "classic", required: 0, defaultSkin: 19, prestige: 1, image: "/src/assets/ships/prestige-stellar.png" },
+    { name: "Quantum Dancer", color: "#b24bff", shape: "dart", required: 0, defaultSkin: 20, prestige: 1, image: "/src/assets/ships/prestige-quantum.png" },
+    { name: "Cosmic Queen", color: "#00ffcc", shape: "ring", required: 0, defaultSkin: 21, prestige: 1, image: "/src/assets/ships/prestige-cosmic.png" },
+    { name: "Void Knight", color: "#ff0099", shape: "blade", required: 0, defaultSkin: 22, prestige: 2, image: "/src/assets/ships/prestige-void.png" },
+    { name: "Eclipse Oracle", color: "#9933ff", shape: "classic", required: 0, defaultSkin: 23, prestige: 2, image: "/src/assets/ships/prestige-oracle.png" },
+    { name: "Infinity Pilot", color: "#00ff66", shape: "dart", required: 0, defaultSkin: 24, prestige: 3, image: "/src/assets/ships/prestige-infinity.png" },
+    { name: "Stellar Legend", color: "#ff6600", shape: "ring", required: 0, defaultSkin: 25, prestige: 3, image: "/src/assets/ships/prestige-legend.png" },
 ];
 
 let playerX = 120;
@@ -408,39 +438,88 @@ function showShop() {
     });
     const wheel = document.createElement("article");
     wheel.className = "asteroid-wheel";
-    wheel.innerHTML = `<div class="wheel-ring"><span>✦</span></div><b>ASTEROID ROLL</b><small>1 special asteroid / up to 100 normal asteroids</small>`;
+    const isPrestigeMode = activePlanet === "prestige";
+    wheel.innerHTML = isPrestigeMode
+        ? `<div class="wheel-ring"><span>✦</span></div><b>PRESTIGE GAMBLE</b><small>1 special asteroid / exclusive skins, avatars & trails</small>`
+        : `<div class="wheel-ring"><span>✦</span></div><b>ASTEROID ROLL</b><small>1 special asteroid / up to 100 normal asteroids</small>`;
     const roll = document.createElement("button");
     roll.className = "text-button shop-buy";
     roll.type = "button";
-    roll.textContent = "Spin left to right / 1 special";
+    roll.textContent = isPrestigeMode ? "Spin for prestige rewards / 1 special" : "Spin left to right / 1 special";
     roll.disabled = specialAsteroids < 1;
     roll.addEventListener("click", () => {
         if (specialAsteroids < 1) return;
         specialAsteroids--;
         wheel.classList.add("spinning");
         roll.disabled = true;
-        const reward = Math.floor(Math.random() * 100) + 1;
-        asteroidsClaimed += reward;
-        selectedTrail = trails.findIndex((trail) => trail.name === "Jackpot Spark");
-        localStorage.setItem("orbit-trail", String(selectedTrail));
-        localStorage.setItem("orbit-jackpot-avatar", "1");
-        localStorage.setItem("orbit-special-claims", String(specialAsteroids));
-        localStorage.setItem("orbit-claims", String(asteroidsClaimed));
-        window.setTimeout(() => {
-            wheel.classList.remove("spinning");
-            const result = document.createElement("div");
-            result.className = "spin-result";
-            result.setAttribute("role", "dialog");
-            result.setAttribute("aria-modal", "true");
-            result.innerHTML = `<div class="spin-result-card"><p class="eyebrow">ROLL COMPLETE</p><h2>You got <em>${reward} asteroids</em></h2><p>Jackpot Spark equipped. Jackpot Crown unlocked.</p></div>`;
-            const close = document.createElement("button");
-            close.className = "menu-button";
-            close.type = "button";
-            close.textContent = "Continue";
-            close.addEventListener("click", () => showShop());
-            result.querySelector(".spin-result-card")?.append(close);
-            menu.append(result);
-        }, 900);
+        
+        if (isPrestigeMode) {
+            // Prestige mode: roll for cosmetics
+            const skinRewards = [19, 20, 21, 22, 23, 24, 25]; // Prestige skins (indices 19-25)
+            const trailRewards = [14, 15, 16, 17, 18, 19, 20, 21]; // Prestige trails (indices 14-21)
+            const avatarRewards = [9, 10, 11, 12, 13, 14, 15]; // Prestige avatars (indices 9-15)
+            
+            const rewardType = Math.floor(Math.random() * 3); // 0: skin, 1: trail, 2: avatar
+            let rewardMessage = "";
+            
+            if (rewardType === 0) {
+                const skinIndex = skinRewards[Math.floor(Math.random() * skinRewards.length)];
+                selectedSkin = skinIndex;
+                localStorage.setItem("orbit-skin", String(selectedSkin));
+                rewardMessage = `${skins[skinIndex].name} skin unlocked!`;
+            } else if (rewardType === 1) {
+                const trailIndex = trailRewards[Math.floor(Math.random() * trailRewards.length)];
+                selectedTrail = trailIndex;
+                localStorage.setItem("orbit-trail", String(selectedTrail));
+                rewardMessage = `${trails[trailIndex].name} trail unlocked!`;
+            } else {
+                const avatarIndex = avatarRewards[Math.floor(Math.random() * avatarRewards.length)];
+                selectedAvatar = avatarIndex;
+                localStorage.setItem("orbit-avatar", String(selectedAvatar));
+                rewardMessage = `${avatars[avatarIndex].name} avatar unlocked!`;
+            }
+            
+            localStorage.setItem("orbit-special-claims", String(specialAsteroids));
+            window.setTimeout(() => {
+                wheel.classList.remove("spinning");
+                const result = document.createElement("div");
+                result.className = "spin-result";
+                result.setAttribute("role", "dialog");
+                result.setAttribute("aria-modal", "true");
+                result.innerHTML = `<div class="spin-result-card"><p class="eyebrow">PRESTIGE GAMBLE COMPLETE</p><h2>${rewardMessage}</h2><p>A new cosmetic has been added to your collection.</p></div>`;
+                const close = document.createElement("button");
+                close.className = "menu-button";
+                close.type = "button";
+                close.textContent = "Continue";
+                close.addEventListener("click", () => showShop());
+                result.querySelector(".spin-result-card")?.append(close);
+                menu.append(result);
+            }, 900);
+        } else {
+            // Normal mode: roll for asteroids (original behavior)
+            const reward = Math.floor(Math.random() * 100) + 1;
+            asteroidsClaimed += reward;
+            selectedTrail = trails.findIndex((trail) => trail.name === "Jackpot Spark");
+            localStorage.setItem("orbit-trail", String(selectedTrail));
+            localStorage.setItem("orbit-jackpot-avatar", "1");
+            localStorage.setItem("orbit-special-claims", String(specialAsteroids));
+            localStorage.setItem("orbit-claims", String(asteroidsClaimed));
+            window.setTimeout(() => {
+                wheel.classList.remove("spinning");
+                const result = document.createElement("div");
+                result.className = "spin-result";
+                result.setAttribute("role", "dialog");
+                result.setAttribute("aria-modal", "true");
+                result.innerHTML = `<div class="spin-result-card"><p class="eyebrow">ROLL COMPLETE</p><h2>You got <em>${reward} asteroids</em></h2><p>Jackpot Spark equipped. Jackpot Crown unlocked.</p></div>`;
+                const close = document.createElement("button");
+                close.className = "menu-button";
+                close.type = "button";
+                close.textContent = "Continue";
+                close.addEventListener("click", () => showShop());
+                result.querySelector(".spin-result-card")?.append(close);
+                menu.append(result);
+            }, 900);
+        }
     });
     wheel.append(roll);
     menu.append(currency, grid, wheel, createTextButton("Mission select", showLevelMenu), createTextButton("Main menu", showMenu), createPageCounter());
@@ -933,6 +1012,6 @@ function tryPrestige() {
 function isSkinUnlocked(skin: { required: number; boss?: boolean; secret?: boolean; prestige?: number; golden?: boolean }) { return localStorage.getItem("orbit-unlock-skins") === "1" || (skin.golden ? getCompletedLevelCount() >= 20 : skin.prestige !== undefined ? prestigeLevel >= skin.prestige : skin.boss ? localStorage.getItem("orbit-boss-defeated") === "1" : skin.secret ? localStorage.getItem("orbit-secret-unlocked") === "1" : asteroidsClaimed >= skin.required); }
 function getUnlockedSkinCount() { return skins.filter(isSkinUnlocked).length; }
 function isAvatarUnlocked(avatar: AvatarStyle) { return localStorage.getItem("orbit-unlock-avatars") === "1" || (avatar.golden ? getCompletedLevelCount() >= 20 : avatar.prestige !== undefined ? prestigeLevel >= avatar.prestige : avatar.jackpot ? localStorage.getItem("orbit-jackpot-avatar") === "1" : true); }
-function isTrailUnlocked(trail: TrailStyle) { return localStorage.getItem("orbit-unlock-trails") === "1" || (trail.golden ? getCompletedLevelCount() >= 20 : trail.boss ? localStorage.getItem("orbit-boss-defeated") === "1" : trail.secret ? localStorage.getItem("orbit-secret-unlocked") === "1" : asteroidsClaimed >= trail.required); }
+function isTrailUnlocked(trail: TrailStyle) { return localStorage.getItem("orbit-unlock-trails") === "1" || (trail.golden ? getCompletedLevelCount() >= 20 : trail.prestige !== undefined ? prestigeLevel >= trail.prestige : trail.boss ? localStorage.getItem("orbit-boss-defeated") === "1" : trail.secret ? localStorage.getItem("orbit-secret-unlocked") === "1" : asteroidsClaimed >= trail.required); }
 function getUnlockedTrailCount() { return trails.filter(isTrailUnlocked).length; }
 function formatTime(milliseconds: number) { const total = Math.max(0, Math.floor(milliseconds)); const minutes = Math.floor(total / 60000).toString().padStart(2, "0"); const seconds = Math.floor(total / 1000 % 60).toString().padStart(2, "0"); const millis = (total % 1000).toString().padStart(3, "0"); return `${minutes}:${seconds}.${millis}`; }
