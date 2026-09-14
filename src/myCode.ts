@@ -17,7 +17,8 @@ type LevelKey = { x: number; y: number; collected: boolean };
 type Boss = { x: number; y: number; health: number; maxHealth: number; defeated: boolean };
 type MiniBoss = { x: number; y: number; health: number; maxHealth: number; defeated: boolean };
 type TrailStyle = { name: string; color: string; required: number; effect: "ember" | "comet" | "spark" | "ribbon" | "arc"; secret?: boolean; boss?: boolean; golden?: boolean; prestige?: number };
-type AvatarStyle = { name: string; color: string; shape: "classic" | "dart" | "ring" | "blade"; required: number; image?: string; defaultSkin: number; prestige?: number; golden?: boolean; jackpot?: boolean };
+type PrestigeShipArt = "stellar-guard" | "quantum-dancer" | "cosmic-queen" | "void-knight" | "eclipse-oracle" | "infinity-pilot" | "stellar-legend";
+type AvatarStyle = { name: string; color: string; shape: "classic" | "dart" | "ring" | "blade"; required: number; image?: string; cssArt?: PrestigeShipArt; defaultSkin: number; prestige?: number; golden?: boolean; jackpot?: boolean };
 type Level = { name: string; briefing: string; length: number; asteroids: number[]; walls: number[]; enemies: number[]; spikes: number[]; gravity: number[]; portals?: number[]; flip?: number[]; powerups?: { index: number; kind: PowerupKind }[]; key?: number; secretId?: string; specialAsteroids?: number[]; miniBosses?: number[]; boss?: boolean; bossIndex?: number; secret?: boolean; prestige?: boolean };
 
 const TILE_WIDTH = 180;
@@ -113,13 +114,13 @@ const avatars: AvatarStyle[] = [
     { name: "Prestige Nova", color: "#ffb6e6", shape: "blade", required: 0, defaultSkin: 3, prestige: 3, image: "/src/assets/ships/prestige-nova.png" },
     { name: "Golden Pilot", color: "#ffe36e", shape: "classic", required: 0, defaultSkin: 17, golden: true, image: "/src/assets/ships/golden-crown.svg" },
     // Prestige-exclusive avatars from special rolls
-    { name: "Stellar Guard", color: "#ffcc33", shape: "classic", required: 0, defaultSkin: 19, prestige: 1, image: "/src/assets/ships/prestige-stellar.png" },
-    { name: "Quantum Dancer", color: "#b24bff", shape: "dart", required: 0, defaultSkin: 20, prestige: 1, image: "/src/assets/ships/prestige-quantum.png" },
-    { name: "Cosmic Queen", color: "#00ffcc", shape: "ring", required: 0, defaultSkin: 21, prestige: 1, image: "/src/assets/ships/prestige-cosmic.png" },
-    { name: "Void Knight", color: "#ff0099", shape: "blade", required: 0, defaultSkin: 22, prestige: 2, image: "/src/assets/ships/prestige-void.png" },
-    { name: "Eclipse Oracle", color: "#9933ff", shape: "classic", required: 0, defaultSkin: 23, prestige: 2, image: "/src/assets/ships/prestige-oracle.png" },
-    { name: "Infinity Pilot", color: "#00ff66", shape: "dart", required: 0, defaultSkin: 24, prestige: 3, image: "/src/assets/ships/prestige-infinity.png" },
-    { name: "Stellar Legend", color: "#ff6600", shape: "ring", required: 0, defaultSkin: 25, prestige: 3, image: "/src/assets/ships/prestige-legend.png" },
+    { name: "Stellar Guard", color: "#ffcc33", shape: "classic", required: 0, defaultSkin: 19, prestige: 1, cssArt: "stellar-guard" },
+    { name: "Quantum Dancer", color: "#b24bff", shape: "dart", required: 0, defaultSkin: 20, prestige: 1, cssArt: "quantum-dancer" },
+    { name: "Cosmic Queen", color: "#00ffcc", shape: "ring", required: 0, defaultSkin: 21, prestige: 1, cssArt: "cosmic-queen" },
+    { name: "Void Knight", color: "#ff0099", shape: "blade", required: 0, defaultSkin: 22, prestige: 2, cssArt: "void-knight" },
+    { name: "Eclipse Oracle", color: "#9933ff", shape: "classic", required: 0, defaultSkin: 23, prestige: 2, cssArt: "eclipse-oracle" },
+    { name: "Infinity Pilot", color: "#00ff66", shape: "dart", required: 0, defaultSkin: 24, prestige: 3, cssArt: "infinity-pilot" },
+    { name: "Stellar Legend", color: "#ff6600", shape: "ring", required: 0, defaultSkin: 25, prestige: 3, cssArt: "stellar-legend" },
 ];
 
 let playerX = 120;
@@ -318,7 +319,7 @@ function showCustomization() {
     const selectedSkinStyle = skins[selectedSkin] ?? skins[0];
     const previewArt = selectedAvatarStyle.image ?? selectedSkinStyle.image;
     const selectedTrailStyle = trails[selectedTrail] ?? trails[0];
-    const preview = document.createElement("aside"); preview.className = "ship-preview"; preview.innerHTML = `<p class="setting-title">Current character</p><div class="preview-stage">${previewArt ? createShipArtMarkup(previewArt, selectedAvatarStyle.name, selectedSkinStyle.color) : `<div class="preview-ship ship-${selectedSkinStyle.shape}" style="--ship-color:${selectedSkinStyle.color}"><span></span><i></i></div>`}</div><b>${selectedAvatarStyle.name}</b><small>${selectedSkinStyle.name} skin / ${selectedTrailStyle.name} trail</small><div class="trail-preview" style="--trail-color:${selectedTrailStyle.color}">${Array.from({ length: 5 }, (_, index) => `<i class="trail-preview-particle trail-effect-${selectedTrailStyle.effect}" style="--trail-delay:${index * 90}ms"></i>`).join("")}</div>`;
+    const preview = document.createElement("aside"); preview.className = "ship-preview"; preview.innerHTML = `<p class="setting-title">Current character</p><div class="preview-stage">${selectedAvatarStyle.cssArt ? createCssShipArtMarkup(selectedAvatarStyle.cssArt, selectedAvatarStyle.name, selectedSkinStyle.color) : previewArt ? createShipArtMarkup(previewArt, selectedAvatarStyle.name, selectedSkinStyle.color) : `<div class="preview-ship ship-${selectedSkinStyle.shape}" style="--ship-color:${selectedSkinStyle.color}"><span></span><i></i></div>`}</div><b>${selectedAvatarStyle.name}</b><small>${selectedSkinStyle.name} skin / ${selectedTrailStyle.name} trail</small><div class="trail-preview" style="--trail-color:${selectedTrailStyle.color}">${Array.from({ length: 5 }, (_, index) => `<i class="trail-preview-particle trail-effect-${selectedTrailStyle.effect}" style="--trail-delay:${index * 90}ms"></i>`).join("")}</div>`;
     const addChoices = (title: string, choices: string[], selected: number, onSelect: (index: number) => void, className: string) => {
         const heading = document.createElement("p"); heading.className = "setting-title"; heading.textContent = title; panel.append(heading);
         const grid = document.createElement("div"); grid.className = className;
@@ -331,7 +332,7 @@ function showCustomization() {
     avatars.forEach((avatar, index) => {
         const unlocked = isAvatarUnlocked(avatar);
         const button = document.createElement("button"); button.className = `avatar-option ${selectedAvatar === index ? "selected" : ""}`; button.disabled = !unlocked;
-        button.innerHTML = `${avatar.image ? createShipArtMarkup(avatar.image, avatar.name, selectedSkinStyle.color) : `<i style="--avatar-color:${selectedSkinStyle.color}"></i>`}<span>${avatar.name}</span><small>${unlocked ? "READY" : avatar.prestige ? `PRESTIGE ${avatar.prestige}` : avatar.golden ? "20 routes" : avatar.jackpot ? "JACKPOT" : "LOCKED"}</small>`;
+        button.innerHTML = `${avatar.cssArt ? createCssShipArtMarkup(avatar.cssArt, avatar.name, selectedSkinStyle.color) : avatar.image ? createShipArtMarkup(avatar.image, avatar.name, selectedSkinStyle.color) : `<i style="--avatar-color:${selectedSkinStyle.color}"></i>`}<span>${avatar.name}</span><small>${unlocked ? "READY" : avatar.prestige ? `PRESTIGE ${avatar.prestige}` : avatar.golden ? "20 routes" : avatar.jackpot ? "JACKPOT" : "LOCKED"}</small>`;
         button.addEventListener("click", () => {
             selectedAvatar = index;
             if (isSkinUnlocked(skins[avatar.defaultSkin])) {
@@ -404,6 +405,7 @@ function createTextButton(text: string, action: () => void) {
 }
 
 function createShipArtMarkup(image: string, label: string, color: string) { return `<span class="ship-art-image" role="img" aria-label="${label}" style="--ship-image:url('${image}');--ship-color:${color}"></span>`; }
+function createCssShipArtMarkup(art: PrestigeShipArt, label: string, color: string) { return `<span class="ship-css-art ship-css-${art}" role="img" aria-label="${label}" style="--ship-color:${color}"></span>`; }
 
 function getInventory(): Record<PowerupKind, number> {
     try { return { shield: 0, boost: 0, rapid: 0, cannon: 0, ...JSON.parse(localStorage.getItem("orbit-powerups") ?? "{}") }; }
@@ -831,7 +833,8 @@ function createPlayer() {
     const skin = skins[selectedSkin] ?? skins[0];
     const avatar = avatars[selectedAvatar] ?? avatars[0];
     const shipArt = avatar.image ?? skin.image;
-    playerLabel.className = `player ${shipArt ? "" : `ship-${skin.shape}`} avatar-${selectedAvatar}`; playerLabel.style.setProperty("--ship-color", skin.color); playerLabel.innerHTML = `${shipArt ? createShipArtMarkup(shipArt, avatar.name, skin.color) : "<span class=\"ship-window\"></span>"}<span class="ship-flame"></span>`; world.append(playerLabel); updatePlayerPosition();
+    const hasCustomArt = Boolean(avatar.cssArt || shipArt);
+    playerLabel.className = `player ${hasCustomArt ? "" : `ship-${skin.shape}`} avatar-${selectedAvatar}`; playerLabel.style.setProperty("--ship-color", skin.color); playerLabel.innerHTML = `${avatar.cssArt ? createCssShipArtMarkup(avatar.cssArt, avatar.name, skin.color) : shipArt ? createShipArtMarkup(shipArt, avatar.name, skin.color) : "<span class=\"ship-window\"></span>"}<span class="ship-flame"></span>`; world.append(playerLabel); updatePlayerPosition();
 }
 
 function createWorldObjects() {
