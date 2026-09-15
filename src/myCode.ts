@@ -7,6 +7,7 @@ const bossLabel = document.createElement("span");
 const timerLabel = document.createElement("span");
 
 type Box = { x: number; y: number; width: number; height: number };
+type Obstacle = Box & { airborne?: boolean };
 type Asteroid = { x: number; y: number; claimed: boolean; special: boolean };
 type Hazard = { x: number; y: number; width: number; height: number; kind: "spikes" | "gravity" };
 type Enemy = { x: number; y: number; defeated: boolean };
@@ -20,8 +21,16 @@ type TrailStyle = { name: string; color: string; required: number; effect: "embe
 type PrestigeShipArt = "stellar-guard" | "quantum-dancer" | "cosmic-queen" | "void-knight" | "eclipse-oracle" | "infinity-pilot" | "stellar-legend";
 type AvatarStyle = { name: string; color: string; shape: "classic" | "dart" | "ring" | "blade"; required: number; image?: string; cssArt?: PrestigeShipArt; defaultSkin: number; prestige?: number; golden?: boolean; jackpot?: boolean };
 type Level = { name: string; briefing: string; length: number; asteroids: number[]; walls: number[]; enemies: number[]; spikes: number[]; gravity: number[]; portals?: number[]; flip?: number[]; powerups?: { index: number; kind: PowerupKind }[]; key?: number; secretId?: string; specialAsteroids?: number[]; miniBosses?: number[]; boss?: boolean; bossIndex?: number; secret?: boolean; prestige?: boolean };
+type Rarity = "Common" | "Uncommon" | "Rare" | "Epic" | "Legendary";
+type CosmeticGroup = "skin" | "trail" | "avatar";
 
 const TILE_WIDTH = 180;
+const PORTAL_Y = 175;
+const PORTAL_SIZE = 58;
+const CEILING_Y = 20;
+const FLOOR_Y = 300;
+const SPECIAL_ASTEROID_ODDS: Record<Rarity, number> = { Common: 52, Uncommon: 27, Rare: 13, Epic: 6, Legendary: 2 };
+const SPECIAL_ASTEROID_ASTEROID_REWARDS: Record<Rarity, number> = { Common: 5, Uncommon: 12, Rare: 30, Epic: 65, Legendary: 100 };
 const levels: Level[] = [
     { name: "Quiet Orbit", briefing: "Learn the drift. Claim every asteroid and reach the beacon.", length: 12, asteroids: [2, 5, 8], walls: [4], enemies: [], spikes: [], gravity: [] },
     { name: "Redline Pass", briefing: "The rocks are tighter here. Watch the sentry fire.", length: 15, asteroids: [2, 5, 8, 12], walls: [4, 7], enemies: [9], spikes: [6], gravity: [] },
@@ -133,7 +142,7 @@ let prestigeLevel = Number(localStorage.getItem("orbit-prestige") ?? "0");
 let prestigeMax = Number(localStorage.getItem("orbit-prestige-max") ?? "3");
 let currentLevel = 0;
 let levelAsteroids: Asteroid[] = [];
-let levelObstacles: Box[] = [];
+let levelObstacles: Obstacle[] = [];
 let levelHazards: Hazard[] = [];
 let levelEnemies: Enemy[] = [];
 let levelPowerups: Powerup[] = [];
@@ -165,6 +174,8 @@ let reducedEffects = localStorage.getItem("orbit-reduced-effects") === "true";
 let levelStartedAt = 0;
 let elapsedMilliseconds = 0;
 let shipFlipped = false;
+let portalCooldownUntil = 0;
+let spinInProgress = false;
 let activePlanet: "normal" | "prestige" = "normal";
 const pressedKeys = new Set<string>();
 const gravity = 0.7;
@@ -206,7 +217,12 @@ function showMenu() {
         menu.innerHTML = `<div class="brand-mark">JACER <span>/ 02</span></div><h1>Jacer</h1><p class="menu-copy">Pilot the claim ship through five dangerous sectors. Every asteroid you secure upgrades your flight.</p><div class="home-stats"><span><strong>${asteroidsClaimed}</strong> normal</span><span><strong>${specialAsteroids}</strong> special</span><span><strong>${prestigeLevel}</strong> prestige</span><span><strong>${getCompletedLevelCount()} / ${levels.length}</strong> routes complete</span><span><strong>${getUnlockedSkinCount()}</strong> skins online</span><span><strong>${getUnlockedTrailCount()}</strong> trails online</span></div><p class="prestige-requirement">NEXT PRESTIGE / ${getPrestigeRequirement(prestigeLevel).normal} NORMAL + ${getPrestigeRequirement(prestigeLevel).special} SPECIAL</p>`;
     const menuActions = document.createElement("nav"); menuActions.className = "menu-actions";
     menuActions.append(createMenuButton("Launch mission", showLevelMenu), createMenuButton("Customization", showCustomization), createMenuButton("Power-up shop", showShop), createMenuButton("Flight settings", showSettings));
-    const secondaryActions = document.createElement("div"); secondaryActions.className = "secondary-actions"; secondaryActions.append(createTextButton("Credits", showCredits));
+    if (hasClearedPrestigeGate() && prestigeLevel < prestigeMax) {
+        const claimPrestige = createMenuButton(canClaimPrestige() ? "Claim prestige" : "Claim prestige / requirements unmet", () => { if (tryPrestige()) showMenu(); });
+        claimPrestige.disabled = !canClaimPrestige();
+        menuActions.append(claimPrestige);
+    }
+    const secondaryActions = document.createElement("div"); secondaryActions.className = "secondary-actions"; secondaryActions.append(createTextButton("Special asteroid odds", showDropRates), createTextButton("Credits", showCredits));
     menu.append(menuActions, secondaryActions);
     menu.append(createPageCounter()); document.body.replaceChildren(menu);
 }
@@ -323,7 +339,15 @@ function showCustomization() {
     const addChoices = (title: string, choices: string[], selected: number, onSelect: (index: number) => void, className: string) => {
         const heading = document.createElement("p"); heading.className = "setting-title"; heading.textContent = title; panel.append(heading);
         const grid = document.createElement("div"); grid.className = className;
-        choices.forEach((choice, index) => { const button = document.createElement("button"); button.className = `loadout-choice ${selected === index ? "selected" : ""}`; button.textContent = choice; button.disabled = title === "Skin color" ? !isSkinUnlocked(skins[index]) : title === "Trail" ? !isTrailUnlocked(trails[index]) : false; button.addEventListener("click", () => onSelect(index)); grid.append(button); }); panel.append(grid);
+        choices.forEach((choice, index) => {
+            const button = document.createElement("button");
+            const rarity = title === "Skin color" ? getCosmeticRarity(skins[index]) : title === "Trail" ? getCosmeticRarity(trails[index]) : null;
+            button.className = `loadout-choice ${selected === index ? "selected" : ""}`;
+            button.innerHTML = `<span>${choice}</span>${rarity ? createRarityBadge(rarity) : ""}`;
+            button.disabled = title === "Skin color" ? !isSkinUnlocked(skins[index]) : title === "Trail" ? !isTrailUnlocked(trails[index]) : false;
+            button.addEventListener("click", () => onSelect(index));
+            grid.append(button);
+        }); panel.append(grid);
     };
     addChoices("Skin color", skins.map((skin) => skin.name), selectedSkin, (index) => { if (isSkinUnlocked(skins[index])) { selectedSkin = index; localStorage.setItem("orbit-skin", String(index)); showCustomization(); } }, "customization-grid");
     addChoices("Trail", trails.map((trail) => trail.name), selectedTrail, (index) => { if (isTrailUnlocked(trails[index])) { selectedTrail = index; localStorage.setItem("orbit-trail", String(index)); showCustomization(); } }, "customization-grid");
@@ -332,7 +356,7 @@ function showCustomization() {
     avatars.forEach((avatar, index) => {
         const unlocked = isAvatarUnlocked(avatar);
         const button = document.createElement("button"); button.className = `avatar-option ${selectedAvatar === index ? "selected" : ""}`; button.disabled = !unlocked;
-        button.innerHTML = `${avatar.cssArt ? createCssShipArtMarkup(avatar.cssArt, avatar.name, selectedSkinStyle.color) : avatar.image ? createShipArtMarkup(avatar.image, avatar.name, selectedSkinStyle.color) : `<i style="--avatar-color:${selectedSkinStyle.color}"></i>`}<span>${avatar.name}</span><small>${unlocked ? "READY" : avatar.prestige ? `PRESTIGE ${avatar.prestige}` : avatar.golden ? "20 routes" : avatar.jackpot ? "JACKPOT" : "LOCKED"}</small>`;
+        button.innerHTML = `${avatar.cssArt ? createCssShipArtMarkup(avatar.cssArt, avatar.name, selectedSkinStyle.color) : avatar.image ? createShipArtMarkup(avatar.image, avatar.name, selectedSkinStyle.color) : `<i style="--avatar-color:${selectedSkinStyle.color}"></i>`}<span>${avatar.name}</span>${createRarityBadge(getCosmeticRarity(avatar))}<small>${unlocked ? "READY" : avatar.prestige ? `PRESTIGE ${avatar.prestige}` : avatar.golden ? "20 routes" : avatar.jackpot ? "JACKPOT" : "LOCKED"}</small>`;
         button.addEventListener("click", () => {
             selectedAvatar = index;
             if (isSkinUnlocked(skins[avatar.defaultSkin])) {
@@ -448,83 +472,121 @@ function showShop() {
     roll.className = "text-button shop-buy";
     roll.type = "button";
     roll.textContent = isPrestigeMode ? "Spin for prestige rewards / 1 special" : "Spin left to right / 1 special";
-    roll.disabled = specialAsteroids < 1;
+    roll.disabled = specialAsteroids < 1 || spinInProgress;
     roll.addEventListener("click", () => {
-        if (specialAsteroids < 1) return;
+        if (specialAsteroids < 1 || spinInProgress) return;
+        spinInProgress = true;
         specialAsteroids--;
+        localStorage.setItem("orbit-special-claims", String(specialAsteroids));
         wheel.classList.add("spinning");
         roll.disabled = true;
-        
-        if (isPrestigeMode) {
-            // Prestige mode: roll for cosmetics
-            const skinRewards = [19, 20, 21, 22, 23, 24, 25]; // Prestige skins (indices 19-25)
-            const trailRewards = [14, 15, 16, 17, 18, 19, 20, 21]; // Prestige trails (indices 14-21)
-            const avatarRewards = [9, 10, 11, 12, 13, 14, 15]; // Prestige avatars (indices 9-15)
-            
-            const rewardType = Math.floor(Math.random() * 3); // 0: skin, 1: trail, 2: avatar
-            let rewardMessage = "";
-            
-            if (rewardType === 0) {
-                const skinIndex = skinRewards[Math.floor(Math.random() * skinRewards.length)];
-                selectedSkin = skinIndex;
-                localStorage.setItem("orbit-skin", String(selectedSkin));
-                rewardMessage = `${skins[skinIndex].name} skin unlocked!`;
-            } else if (rewardType === 1) {
-                const trailIndex = trailRewards[Math.floor(Math.random() * trailRewards.length)];
-                selectedTrail = trailIndex;
-                localStorage.setItem("orbit-trail", String(selectedTrail));
-                rewardMessage = `${trails[trailIndex].name} trail unlocked!`;
-            } else {
-                const avatarIndex = avatarRewards[Math.floor(Math.random() * avatarRewards.length)];
-                selectedAvatar = avatarIndex;
-                localStorage.setItem("orbit-avatar", String(selectedAvatar));
-                rewardMessage = `${avatars[avatarIndex].name} avatar unlocked!`;
-            }
-            
-            localStorage.setItem("orbit-special-claims", String(specialAsteroids));
-            window.setTimeout(() => {
-                wheel.classList.remove("spinning");
-                const result = document.createElement("div");
-                result.className = "spin-result";
-                result.setAttribute("role", "dialog");
-                result.setAttribute("aria-modal", "true");
-                result.innerHTML = `<div class="spin-result-card"><p class="eyebrow">PRESTIGE GAMBLE COMPLETE</p><h2>${rewardMessage}</h2><p>A new cosmetic has been added to your collection.</p></div>`;
-                const close = document.createElement("button");
-                close.className = "menu-button";
-                close.type = "button";
-                close.textContent = "Continue";
-                close.addEventListener("click", () => showShop());
-                result.querySelector(".spin-result-card")?.append(close);
-                menu.append(result);
-            }, 900);
-        } else {
-            // Normal mode: roll for asteroids (original behavior)
-            const reward = Math.floor(Math.random() * 100) + 1;
-            asteroidsClaimed += reward;
-            selectedTrail = trails.findIndex((trail) => trail.name === "Jackpot Spark");
-            localStorage.setItem("orbit-trail", String(selectedTrail));
-            localStorage.setItem("orbit-jackpot-avatar", "1");
-            localStorage.setItem("orbit-special-claims", String(specialAsteroids));
-            localStorage.setItem("orbit-claims", String(asteroidsClaimed));
-            window.setTimeout(() => {
-                wheel.classList.remove("spinning");
-                const result = document.createElement("div");
-                result.className = "spin-result";
-                result.setAttribute("role", "dialog");
-                result.setAttribute("aria-modal", "true");
-                result.innerHTML = `<div class="spin-result-card"><p class="eyebrow">ROLL COMPLETE</p><h2>You got <em>${reward} asteroids</em></h2><p>Jackpot Spark equipped. Jackpot Crown unlocked.</p></div>`;
-                const close = document.createElement("button");
-                close.className = "menu-button";
-                close.type = "button";
-                close.textContent = "Continue";
-                close.addEventListener("click", () => showShop());
-                result.querySelector(".spin-result-card")?.append(close);
-                menu.append(result);
-            }, 900);
-        }
+        const rarity = rollSpecialAsteroidRarity();
+        const resultCopy = isPrestigeMode ? getPrestigeSpinReward(rarity) : getNormalSpinReward(rarity);
+        window.setTimeout(() => {
+            spinInProgress = false;
+            if (!document.body.contains(menu)) return;
+            wheel.classList.remove("spinning");
+            const result = document.createElement("div");
+            result.className = "spin-result";
+            result.setAttribute("role", "dialog");
+            result.setAttribute("aria-modal", "true");
+            result.innerHTML = `<div class="spin-result-card"><p class="eyebrow">${isPrestigeMode ? "PRESTIGE GAMBLE COMPLETE" : "ROLL COMPLETE"}</p>${createRarityBadge(rarity)}<h2>${resultCopy.title}</h2><p>${resultCopy.description}</p></div>`;
+            const close = document.createElement("button");
+            close.className = "menu-button";
+            close.type = "button";
+            close.textContent = "Continue";
+            close.addEventListener("click", () => showShop());
+            result.querySelector(".spin-result-card")?.append(close);
+            menu.append(result);
+        }, 850);
     });
     wheel.append(roll);
-    menu.append(currency, grid, wheel, createTextButton("Mission select", showLevelMenu), createTextButton("Main menu", showMenu), createPageCounter());
+    menu.append(currency, grid, wheel, createTextButton("View special asteroid odds", showDropRates), createTextButton("Mission select", showLevelMenu), createTextButton("Main menu", showMenu), createPageCounter());
+    document.body.replaceChildren(menu);
+}
+
+function getCosmeticRarity(item: { required: number; secret?: boolean; boss?: boolean; prestige?: number; golden?: boolean; jackpot?: boolean }): Rarity {
+    if (item.golden || item.jackpot || (item.prestige ?? 0) >= 3) return "Legendary";
+    if ((item.prestige ?? 0) >= 2 || item.boss || item.required >= 54) return "Epic";
+    if ((item.prestige ?? 0) >= 1 || item.secret || item.required >= 30) return "Rare";
+    if (item.required >= 10) return "Uncommon";
+    return "Common";
+}
+
+function createRarityBadge(rarity: Rarity) { return `<span class="rarity-badge rarity-${rarity.toLowerCase()}">${rarity}</span>`; }
+function cosmeticUnlockKey(group: CosmeticGroup, index: number) { return `orbit-spin-${group}-${index}`; }
+function isSpinCosmeticUnlocked(group: CosmeticGroup, index: number) { return localStorage.getItem(cosmeticUnlockKey(group, index)) === "1"; }
+function unlockSpinCosmetic(group: CosmeticGroup, index: number) { localStorage.setItem(cosmeticUnlockKey(group, index), "1"); }
+
+function rollSpecialAsteroidRarity(): Rarity {
+    const roll = Math.random() * 100;
+    let threshold = 0;
+    for (const rarity of Object.keys(SPECIAL_ASTEROID_ODDS) as Rarity[]) {
+        threshold += SPECIAL_ASTEROID_ODDS[rarity];
+        if (roll < threshold) return rarity;
+    }
+    return "Common";
+}
+
+function getNormalSpinReward(rarity: Rarity) {
+    const reward = SPECIAL_ASTEROID_ASTEROID_REWARDS[rarity];
+    asteroidsClaimed += reward;
+    localStorage.setItem("orbit-claims", String(asteroidsClaimed));
+    if (rarity === "Legendary") {
+        const jackpotTrail = trails.findIndex((trail) => trail.name === "Jackpot Spark");
+        unlockSpinCosmetic("trail", jackpotTrail);
+        unlockSpinCosmetic("avatar", avatars.findIndex((avatar) => avatar.jackpot));
+        selectedTrail = jackpotTrail;
+        localStorage.setItem("orbit-trail", String(selectedTrail));
+        localStorage.setItem("orbit-jackpot-avatar", "1");
+    }
+    return {
+        title: `You got <em>${reward} asteroids</em>`,
+        description: rarity === "Legendary" ? "Jackpot Spark and Jackpot Crown were added to your collection." : `${rarity} asteroid cache secured.`,
+    };
+}
+
+function getPrestigeSpinReward(rarity: Rarity) {
+    const rewards: { group: CosmeticGroup; index: number; item: { name: string; required: number; secret?: boolean; boss?: boolean; prestige?: number; golden?: boolean; jackpot?: boolean } }[] = [
+        ...skins.map((item, index) => ({ group: "skin" as const, index, item })),
+        ...trails.map((item, index) => ({ group: "trail" as const, index, item })),
+        ...avatars.map((item, index) => ({ group: "avatar" as const, index, item })),
+    ];
+    const matching = rewards.filter((reward) => getCosmeticRarity(reward.item) === rarity);
+    const unclaimed = matching.filter((reward) => !isSpinCosmeticUnlocked(reward.group, reward.index));
+    const reward = (unclaimed.length ? unclaimed : matching.length ? matching : rewards)[Math.floor(Math.random() * (unclaimed.length || matching.length || rewards.length))];
+    unlockSpinCosmetic(reward.group, reward.index);
+    if (reward.group === "skin") { selectedSkin = reward.index; localStorage.setItem("orbit-skin", String(selectedSkin)); }
+    if (reward.group === "trail") { selectedTrail = reward.index; localStorage.setItem("orbit-trail", String(selectedTrail)); }
+    if (reward.group === "avatar") { selectedAvatar = reward.index; localStorage.setItem("orbit-avatar", String(selectedAvatar)); }
+    return { title: `${reward.item.name} <em>unlocked</em>`, description: `${rarity} ${reward.group} added to your collection.` };
+}
+
+function showDropRates() {
+    gameActive = false;
+    cancelAnimationFrame(animationFrame);
+    const menu = document.createElement("main");
+    menu.className = "menu-screen drop-rates-screen";
+    menu.innerHTML = `<p class="eyebrow">SPECIAL ASTEROID / DROP RATES</p><h1>Know the <em>odds</em></h1><p class="menu-copy">Every special-asteroid spin rolls exactly one tier. Higher tiers are rarer and give better asteroid caches or prestige cosmetics.</p>`;
+    const odds = document.createElement("section");
+    odds.className = "rarity-odds";
+    (Object.keys(SPECIAL_ASTEROID_ODDS) as Rarity[]).forEach((rarity) => {
+        const item = document.createElement("article");
+        item.className = `rarity-odds-card rarity-${rarity.toLowerCase()}`;
+        item.innerHTML = `${createRarityBadge(rarity)}<strong>${SPECIAL_ASTEROID_ODDS[rarity]}%</strong><small>${SPECIAL_ASTEROID_ASTEROID_REWARDS[rarity]} normal asteroids on the blue planet</small>`;
+        odds.append(item);
+    });
+    const catalog = document.createElement("section");
+    catalog.className = "rarity-catalog";
+    const collections: { title: string; items: { name: string; required: number; secret?: boolean; boss?: boolean; prestige?: number; golden?: boolean; jackpot?: boolean }[] }[] = [
+        { title: "Skins", items: skins }, { title: "Trails", items: trails }, { title: "Avatars", items: avatars },
+    ];
+    collections.forEach((collection) => {
+        const group = document.createElement("article");
+        group.innerHTML = `<h2>${collection.title}</h2><div>${collection.items.map((item) => `<span>${item.name}${createRarityBadge(getCosmeticRarity(item))}</span>`).join("")}</div>`;
+        catalog.append(group);
+    });
+    menu.append(odds, catalog, createTextButton("Back to main menu", showMenu), createPageCounter());
     document.body.replaceChildren(menu);
 }
 
