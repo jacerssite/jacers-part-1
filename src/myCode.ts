@@ -1043,10 +1043,38 @@ function createSplash(x: number, y: number) { const splash = document.createElem
 function intersects(first: Box, second: Box) { return first.x < second.x + second.width && first.x + first.width > second.x && first.y < second.y + second.height && first.y + first.height > second.y; }
 
 function checkCollisions() {
-    levelObstacles.forEach((obstacle) => { const horizontal = playerX + playerWidth > obstacle.x && playerX < obstacle.x + obstacle.width, vertical = playerY + playerHeight > obstacle.y && playerY < obstacle.y + obstacle.height, wasAbove = previousPlayerY + playerHeight <= obstacle.y, wasBelow = previousPlayerY >= obstacle.y + obstacle.height; if (horizontal && vertical && verticalSpeed >= 0 && wasAbove) { playerY = obstacle.y - playerHeight; verticalSpeed = 0; jumpCount = 0; } else if (horizontal && vertical && verticalSpeed < 0 && wasBelow) { playerY = obstacle.y + obstacle.height; verticalSpeed = 0; } else if (horizontal && vertical) { playerX = playerX < obstacle.x ? obstacle.x - playerWidth - 4 : obstacle.x + obstacle.width + 4; updatePlayerPosition(); } });
+    levelObstacles.forEach((obstacle) => {
+        const horizontal = playerX + playerWidth > obstacle.x && playerX < obstacle.x + obstacle.width;
+        const vertical = playerY + playerHeight > obstacle.y && playerY < obstacle.y + obstacle.height;
+        const wasAbove = previousPlayerY + playerHeight <= obstacle.y;
+        const wasBelow = previousPlayerY >= obstacle.y + obstacle.height;
+        const landed = shipFlipped
+            ? (verticalSpeed >= 0 && wasAbove) || (verticalSpeed < 0 && wasBelow)
+            : (verticalSpeed >= 0 && wasAbove) || (verticalSpeed < 0 && wasBelow);
+        if (horizontal && vertical && landed) {
+            if (verticalSpeed >= 0 && wasAbove) playerY = obstacle.y - playerHeight;
+            else if (verticalSpeed < 0 && wasBelow) playerY = obstacle.y + obstacle.height;
+            verticalSpeed = 0; jumpCount = 0;
+        } else if (horizontal && vertical) {
+            playerX = playerX < obstacle.x ? obstacle.x - playerWidth - 4 : obstacle.x + obstacle.width + 4;
+            updatePlayerPosition();
+        }
+    });
     levelHazards.forEach((hazard) => { if (hazard.kind === "spikes" && intersects({ x: playerX, y: playerY, width: playerWidth, height: playerHeight }, hazard)) { if (shieldCharges > 0) { shieldCharges--; playerY = 300; statusLabel.textContent = "Shield absorbed the spike hit."; } else showGameOver("The spike belt caught your ship."); } });
     levelPowerups.forEach((powerup, index) => { if (!powerup.collected && intersects({ x: playerX, y: playerY, width: playerWidth, height: playerHeight }, { x: powerup.x, y: powerup.y, width: 38, height: 38 })) { powerup.collected = true; activatePowerup(powerup.kind); document.querySelectorAll(".powerup")[index]?.classList.add("collected"); } });
-    (levels[currentLevel].portals ?? []).forEach((index, portalIndex) => { const portalX = 140 + index * TILE_WIDTH; if (Math.abs(playerX - portalX) < 45) { const target = (levels[currentLevel].portals ?? [])[portalIndex + 1] ?? index + 5; playerX = Math.min(levels[currentLevel].length * TILE_WIDTH, 140 + target * TILE_WIDTH); statusLabel.textContent = "Portal transit complete. Search this new lane for a secret key."; updatePlayerPosition(); } });
+    const portals = levels[currentLevel].portals ?? [];
+    if (performance.now() >= portalCooldownUntil) {
+        portals.some((index, portalIndex) => {
+            const portalBox = { x: 140 + index * TILE_WIDTH, y: PORTAL_Y, width: PORTAL_SIZE, height: PORTAL_SIZE };
+            if (!intersects(playerBox(), portalBox)) return false;
+            const target = portals[portalIndex + 1] ?? index + 5;
+            playerX = Math.min(levels[currentLevel].length * TILE_WIDTH - playerWidth, 140 + target * TILE_WIDTH + PORTAL_SIZE + 24);
+            portalCooldownUntil = performance.now() + 700;
+            statusLabel.textContent = "Portal transit complete. Search this new lane for a secret key.";
+            updatePlayerPosition();
+            return true;
+        });
+    }
     if (levelKey && !levelKey.collected && intersects({ x: playerX, y: playerY, width: playerWidth, height: playerHeight }, { x: levelKey.x, y: levelKey.y, width: 38, height: 38 })) { levelKey.collected = true; const keyId = levels[currentLevel].secretId ?? "eclipse"; localStorage.setItem(`orbit-key-${keyId}`, "1"); if (keyId === "eclipse") localStorage.setItem("orbit-secret-unlocked", "1"); document.querySelector(".level-key")?.classList.add("collected"); statusLabel.textContent = `${keyId} key claimed. Secret level unlocked.`; }
     levelEnemies.forEach((enemy, index) => {
         if (enemy.defeated) return;
