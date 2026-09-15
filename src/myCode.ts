@@ -847,7 +847,7 @@ function buildLevel(levelIndex: number) {
 function startGame(levelIndex = currentLevel) {
     currentLevel = levelIndex;
     buildLevel(currentLevel);
-    playerX = 120; playerY = 300; verticalSpeed = 0; jumpCount = 0; projectiles = []; trailElement = []; trailPositions = []; trailDirection = 1; projectileTimer = 0; trailTimer = 0; playerShotTimer = 0; shieldCharges = 0; boostTimer = 0; rapidTimer = 0; rapidUntil = 0; cannonTimer = 0; gameStarted = false; gameActive = true; previousPlayerY = playerY; levelStartedAt = performance.now(); elapsedMilliseconds = 0; shipFlipped = false;
+    playerX = 120; playerY = 300; verticalSpeed = 0; jumpCount = 0; projectiles = []; trailElement = []; trailPositions = []; trailDirection = 1; projectileTimer = 0; trailTimer = 0; playerShotTimer = 0; shieldCharges = 0; boostTimer = 0; rapidTimer = 0; rapidUntil = 0; rapidCannonUntil = 0; cannonTimer = 0; gameStarted = false; gameActive = true; previousPlayerY = playerY; levelStartedAt = performance.now(); elapsedMilliseconds = 0; shipFlipped = false; portalCooldownUntil = 0;
     document.body.innerHTML = "";
     createGameShell(); createPlayer(); createWorldObjects(); createControls(); startGameLoop();
 }
@@ -913,7 +913,7 @@ function createPlayer() {
 }
 
 function createWorldObjects() {
-    levelObstacles.forEach((obstacle) => { const element = document.createElement("div"); element.className = "obstacle"; Object.assign(element.style, { left: `${obstacle.x}px`, top: `${obstacle.y}px`, width: `${obstacle.width}px`, height: `${obstacle.height}px` }); world.append(element); });
+    levelObstacles.forEach((obstacle) => { const element = document.createElement("div"); element.className = `obstacle ${obstacle.airborne ? "airborne" : ""}`; Object.assign(element.style, { left: `${obstacle.x}px`, top: `${obstacle.y}px`, width: `${obstacle.width}px`, height: `${obstacle.height}px` }); if (obstacle.airborne) element.setAttribute("aria-label", "Airborne planetary obstacle"); world.append(element); });
     levelAsteroids.forEach((asteroid) => { const element = document.createElement("div"); element.className = `asteroid ${asteroid.special ? "special" : ""} ${asteroid.claimed ? "claimed" : ""}`; element.textContent = asteroid.special ? "✹" : "✦"; element.style.left = `${asteroid.x}px`; element.style.top = `${asteroid.y}px`; world.append(element); });
     levelHazards.forEach((hazard) => { const element = document.createElement("div"); element.className = `hazard ${hazard.kind}`; element.style.left = `${hazard.x}px`; element.style.top = `${hazard.y}px`; element.style.width = `${hazard.width}px`; element.style.height = `${hazard.height}px`; element.setAttribute("aria-label", hazard.kind === "spikes" ? "Spike hazard" : "Gravity zone"); world.append(element); });
     levelEnemies.forEach((enemy) => { const element = document.createElement("div"); element.className = "enemy"; element.style.left = `${enemy.x}px`; element.style.top = `${enemy.y}px`; world.append(element); });
