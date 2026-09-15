@@ -105,6 +105,8 @@ h1 em { color: #ed7657; font-style: normal; }
 .ship-window { position: absolute; top: 9px; left: 10px; width: 22px; height: 17px; border: 2px solid #143746; border-radius: 50%; background: #89d0bf; }
 .ship-flame { position: absolute; bottom: -14px; left: 15px; width: 13px; height: 16px; background: #f6c46e; clip-path: polygon(50% 100%, 0 0, 100% 0); }
 .obstacle { position: absolute; z-index: 3; border: 3px solid #9aa486; border-radius: 8px 20px 5px 18px; background: #394f52; box-shadow: inset 10px 8px #51635b, 7px 8px 0 #101b2b44; }
+.obstacle.airborne { border-color: #b991ff; border-radius: 22px 8px 18px 10px; background: linear-gradient(135deg, #392d65, #243d57); box-shadow: 0 0 16px #b991ff99, inset 8px 6px #6e5ca366; }
+.obstacle.airborne::after { position: absolute; right: 10px; bottom: -14px; width: 26px; height: 18px; content: ''; border: 2px solid #f58bff; border-top: 0; border-radius: 0 0 50% 50%; opacity: .8; }
 .crystal { position: absolute; z-index: 4; display: grid; place-items: center; width: 34px; height: 34px; border: 2px solid #f3f5e9; border-radius: 50%; color: #143746; background: #a7e0bc; box-shadow: 0 0 24px #a7e0bc; font-size: 1.5rem; animation: float 1.8s ease-in-out infinite; }
 .crystal.collected { opacity: 0; transform: scale(2); transition: .25s; }
 .enemy { position: absolute; z-index: 4; width: 48px; height: 48px; border: 3px solid #f6c46e; border-radius: 50% 50% 8px 8px; background: #6d3548; box-shadow: 0 0 0 7px #ed765733, inset 0 0 0 8px #ed765744; }
@@ -322,6 +324,21 @@ h1 em { color: #ed7657; font-style: normal; }
 .trail-option small { display: block; margin-top: 5px; color: #99b3a6; font: .52rem 'DM Mono', monospace; }
 .trail-option.selected { border-color: #f6c46e; box-shadow: inset 0 -3px #f6c46e; }
 .trail-option:disabled { opacity: .35; cursor: not-allowed; }
+.rarity-badge { display: inline-block; margin-left: 6px; padding: 2px 5px; border: 1px solid currentColor; border-radius: 999px; font: 600 .5rem 'DM Mono', monospace; letter-spacing: .3px; text-transform: uppercase; vertical-align: middle; }
+.rarity-common { color: #c4d1bd; }
+.rarity-uncommon { color: #a7e0bc; }
+.rarity-rare { color: #6ecbff; }
+.rarity-epic { color: #b991ff; }
+.rarity-legendary { color: #f6c46e; }
+.rarity-odds { display: grid; grid-template-columns: repeat(5, minmax(110px, 1fr)); gap: 8px; width: min(680px, 90vw); margin: 0 auto 18px; }
+.rarity-odds-card { display: grid; align-content: start; gap: 8px; min-height: 105px; padding: 12px 8px; border: 1px solid currentColor; background: #101b2bcc; text-align: center; }
+.rarity-odds-card strong { font: 700 1.8rem 'Space Grotesk', sans-serif; }
+.rarity-odds-card small { color: #99b3a6; font: .55rem/1.35 'DM Mono', monospace; }
+.rarity-catalog { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: min(680px, 90vw); margin: 0 auto 22px; }
+.rarity-catalog article { padding: 12px; border: 1px solid #385267; background: #101b2bcc; }
+.rarity-catalog h2 { margin: 0 0 9px; color: #f6c46e; font-size: .85rem; }
+.rarity-catalog article > div { display: grid; gap: 6px; }
+.rarity-catalog article > div > span { color: #c4d1bd; font: .6rem 'DM Mono', monospace; }
 .page-counter { display: inline-flex; align-items: center; gap: 10px; margin-top: 24px; padding: 9px 12px; border: 1px solid #385267; color: #99b3a6; background: #101b2bcc; font: .62rem 'DM Mono', monospace; letter-spacing: 1px; }
 .page-counter strong { color: #f6c46e; font: 700 1rem 'Space Grotesk', sans-serif; letter-spacing: 0; }
 .secret-gate { display: grid; place-items: center; gap: 2px; width: 120px; margin: 12px auto 18px; padding: 10px; border: 1px solid #fff; border-radius: 50%; color: #fff; background: #fff2; cursor: pointer; }
