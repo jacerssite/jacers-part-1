@@ -8,7 +8,7 @@ const timerLabel = document.createElement("span");
 const areaLabel = document.createElement("span");
 
 type Box = { x: number; y: number; width: number; height: number };
-type Obstacle = Box & { airborne?: boolean; barrier?: boolean; goalLock?: boolean };
+type Obstacle = Box & { airborne?: boolean; barrier?: boolean; goalLock?: boolean; boundary?: boolean };
 type Asteroid = { x: number; y: number; claimed: boolean; special: boolean };
 type Hazard = { x: number; y: number; width: number; height: number; kind: "spikes" | "gravity" };
 type Enemy = { x: number; y: number; defeated: boolean };
@@ -188,6 +188,9 @@ let portalTransitTimer = 0;
 let lastDownPressAt = 0;
 let spinInProgress = false;
 let activePlanet: "normal" | "prestige" = "normal";
+let secretBossRoomActive = false;
+let secretBoss: Boss | null = null;
+let secretBossDefeated = false;
 const pressedKeys = new Set<string>();
 const gravity = 0.7;
 const jumpPower = -16;
@@ -945,7 +948,98 @@ function cancelPortalTransit() {
     if (portalTransitTimer) window.clearTimeout(portalTransitTimer);
     portalTransitTimer = 0;
     portalTravelInProgress = false;
+    secretBossRoomActive = false;
+    secretBoss = null;
+    secretBossDefeated = false;
     document.querySelector(".portal-key-room")?.remove();
+}
+
+function updateSecretBossRoom() {
+    if (!secretBoss || secretBoss.defeated) return;
+    const room = document.querySelector(".portal-key-room");
+    if (!room) return;
+    
+    const bossElement = room.querySelector(".void-warden") as HTMLElement | null;
+    if (bossElement) {
+        bossElement.style.left = `${secretBoss.x}px`;
+        bossElement.style.top = `${secretBoss.y}px`;
+    }
+    
+    // Player collision with secret boss
+    const playerBox = { x: playerX, y: playerY, width: playerWidth, height: playerHeight };
+    const bossBox = { x: secretBoss.x, y: secretBoss.y, width: 128, height: 150 };
+    if (intersects(playerBox, bossBox)) {
+        if (shieldCharges > 0) { 
+            shieldCharges--; 
+            playerX = secretBoss.x - playerWidth - 8; 
+            statusLabel.textContent = "Shield absorbed the Void Warden impact."; 
+        } else { 
+            showGameOver("The Void Warden crushed your hull."); 
+        }
+        return;
+    }
+    
+    if (shootingHeld || pressedKeys.has("e")) {
+        shootSecretBoss();
+    }
+    
+    projectileTimer++;
+    if (projectileTimer >= (rapidTimer > 0 ? 52 : reducedEffects ? 120 : 90)) {
+        projectileTimer = 0;
+        fireSecretBossProjectile();
+    }
+    updateProjectiles();
+}
+
+function shootSecretBoss() {
+    if (!gameActive || !secretBoss || secretBoss.defeated || (cannonTimer <= 0 && rapidCannonUntil <= performance.now())) return;
+    if (playerShotTimer > 0) return;
+    playerShotTimer = rapidUntil > performance.now() ? 8 : 20;
+    const element = document.createElement("div"); element.className = "player-projectile"; document.querySelector(".portal-key-room")?.append(element);
+    projectiles.push({ x: playerX + playerWidth, y: playerY + 22, vx: 8, vy: 0, element, owner: "player" });
+}
+
+function fireSecretBossProjectile() {
+    if (!secretBoss || secretBoss.defeated) return;
+    const directionX = playerX + 24 - secretBoss.x, directionY = playerY + 28 - secretBoss.y, distance = Math.max(1, Math.hypot(directionX, directionY)), element = document.createElement("div");
+    element.className = "boss-projectile secret-boss-projectile"; document.querySelector(".portal-key-room")?.append(element); projectiles.push({ x: secretBoss.x, y: secretBoss.y + 50, vx: directionX / distance * 4.2, vy: directionY / distance * 4.2, element, owner: "enemy" });
+}
+
+function damageSecretBoss() {
+    if (!secretBoss || secretBoss.defeated) return;
+    secretBoss.health--;
+    const room = document.querySelector(".portal-key-room");
+    const bossElement = room?.querySelector(".void-warden");
+    bossElement?.classList.add("hit");
+    window.setTimeout(() => bossElement?.classList.remove("hit"), 180);
+    if (secretBoss.health <= 0) {
+        secretBoss.defeated = true;
+        secretBossDefeated = true;
+        bossElement?.classList.add("defeated");
+        const keyToGrant = levelKey && !levelKey.collected ? levelKey : null;
+        if (keyToGrant) {
+            keyToGrant.collected = true;
+            secretKeyRevealed = true;
+            localStorage.setItem(`orbit-key-${keyToGrant.id}`, "1");
+            if (keyToGrant.id === "eclipse") localStorage.setItem("orbit-secret-unlocked", "1");
+            unlockEndGoal();
+            room?.classList.add("key-collected");
+            const smallEl = room?.querySelector("small");
+            if (smallEl) smallEl.textContent = `${keyToGrant.id.toUpperCase()} KEY SECURED`;
+            statusLabel.textContent = "Void Warden defeated. Secret key claimed!";
+        } else {
+            statusLabel.textContent = "Void Warden defeated!";
+        }
+        portalTransitTimer = window.setTimeout(() => {
+            if (!gameActive || !portalTravelInProgress) return;
+            const portals = levels[currentLevel].portals ?? [];
+            const targetIndex = portals.length > 1 ? 1 : 0;
+            const target = portals[targetIndex] ?? 5;
+            exitSecretBossRoom(target);
+        }, 1500);
+    } else {
+        statusLabel.textContent = `Void Warden damaged. ${secretBoss.health} hit remaining.`;
+    }
 }
 
 function redrawRouteObjects() {
@@ -1000,7 +1094,7 @@ function startGame(levelIndex = currentLevel) {
     cancelPortalTransit();
     currentLevel = levelIndex;
     buildLevel(currentLevel);
-    playerX = 120; playerY = 300; verticalSpeed = 0; jumpCount = 0; projectiles = []; trailElement = []; trailPositions = []; trailDirection = 1; projectileTimer = 0; trailTimer = 0; playerShotTimer = 0; shieldCharges = 0; boostTimer = 0; rapidTimer = 0; rapidUntil = 0; rapidCannonUntil = 0; cannonTimer = 0; gameStarted = false; gameActive = true; previousPlayerY = playerY; levelStartedAt = performance.now(); elapsedMilliseconds = 0; resetFlippedVisualState(); portalCooldownUntil = 0;
+    playerX = 120; playerY = 300; verticalSpeed = 0; jumpCount = 0; projectiles = []; trailElement = []; trailPositions = []; trailDirection = 1; projectileTimer = 0; trailTimer = 0; playerShotTimer = 0; shieldCharges = 0; boostTimer = 0; rapidTimer = 0; rapidUntil = 0; rapidCannonUntil = 0; cannonTimer = 0; gameStarted = false; gameActive = true; previousPlayerY = playerY; levelStartedAt = performance.now(); elapsedMilliseconds = 0; resetFlippedVisualState(); portalCooldownUntil = 0; secretBossDefeated = false;
     document.body.innerHTML = "";
     createGameShell(); createPlayer(); createWorldObjects(); createTrail(); createControls(); startGameLoop();
 }
@@ -1089,7 +1183,8 @@ function createWorldObjects() {
     createLevelKeyObject();
     if (inFlippedRoute && !flippedRouteKeyCollected) { const routeKey = document.createElement("div"); routeKey.className = "level-key flipped-route-key"; routeKey.textContent = "⚿"; routeKey.style.left = `${140 + (levels[currentLevel].flippedRoute?.key ?? 19) * TILE_WIDTH}px`; routeKey.style.top = "170px"; routeKey.setAttribute("aria-label", "Flipped planet exit key"); world.append(routeKey); }
     (levels[currentLevel].portals ?? []).forEach((index) => { const element = document.createElement("div"); element.className = "portal"; element.textContent = "↔"; element.style.left = `${140 + index * TILE_WIDTH}px`; element.style.top = "175px"; element.setAttribute("aria-label", "Level portal"); world.append(element); });
-    if (boss) { const element = document.createElement("div"); element.className = "boss"; element.style.left = `${boss.x}px`; element.style.top = `${boss.y}px`; world.append(element); }
+if (boss) { const element = document.createElement("div"); element.className = "boss"; element.style.left = `${boss.x}px`; element.style.top = `${boss.y}px`; world.append(element); }
+    (levels[currentLevel].portals ?? []).forEach((index) => { const element = document.createElement("div"); element.className = "portal hidden"; element.textContent = ""; element.style.left = `${140 + index * TILE_WIDTH}px`; element.style.top = "175px"; element.setAttribute("aria-label", "Hidden level portal"); world.append(element); });
     const beacon = document.createElement("div"); beacon.className = "beacon"; beacon.style.left = `${(levels[currentLevel].length - 1) * TILE_WIDTH + 140}px`; world.append(beacon);
 }
 
@@ -1134,16 +1229,31 @@ function createLevelKeyObject() {
 function startPortalTransit(target: number) {
     if (portalTravelInProgress) return;
     portalTravelInProgress = true;
+    secretBossRoomActive = true;
     const keyToGrant = levelKey && !levelKey.collected ? levelKey : null;
     const room = document.createElement("section");
-    room.className = "portal-key-room";
+    room.className = "portal-key-room secret-boss-room";
     room.setAttribute("aria-live", "polite");
-    room.innerHTML = `<div class="portal-key-room-warp"></div><div class="portal-key-chamber"><p>PORTAL TRANSIT</p><b>${keyToGrant ? "KEY CHAMBER" : "TRANSIT CHAMBER"}</b><div class="portal-key-room-key">${keyToGrant ? "⚿" : "✦"}</div><small>${keyToGrant ? `${keyToGrant.id.toUpperCase()} KEY DETECTED` : "STABILIZING DESTINATION"}</small></div>`;
+    const hasSecretBoss = !secretBossDefeated && (levels[currentLevel].secret || levels[currentLevel].prestige);
+    room.innerHTML = `<div class="portal-key-room-warp"></div><div class="portal-key-chamber"><p>PORTAL TRANSIT</p><b>${hasSecretBoss ? "SECRET BOSS CHAMBER" : keyToGrant ? "KEY CHAMBER" : "TRANSIT CHAMBER"}</b><div class="portal-key-room-key">${hasSecretBoss ? "⚔" : keyToGrant ? "⚿" : "✦"}</div><small>${hasSecretBoss ? "DEFEAT THE VOID WARDEN TO CLAIM THE KEY" : keyToGrant ? `${keyToGrant.id.toUpperCase()} KEY DETECTED` : "STABILIZING DESTINATION"}</small></div>`;
     document.querySelector(".game-frame")?.append(room);
-    statusLabel.textContent = keyToGrant ? "Portal lock engaged. Entering the key chamber." : "Portal lock engaged. Stabilizing destination.";
+    statusLabel.textContent = hasSecretBoss ? "Portal lock engaged. Entering the secret boss chamber." : keyToGrant ? "Portal lock engaged. Entering the key chamber." : "Portal lock engaged. Stabilizing destination.";
+    
+    if (hasSecretBoss) {
+        secretBoss = { x: 400, y: 200, health: 10, maxHealth: 10, defeated: false };
+        const bossElement = document.createElement("div");
+        bossElement.className = "boss secret-boss void-warden";
+        bossElement.style.left = `${secretBoss.x}px`;
+        bossElement.style.top = `${secretBoss.y}px`;
+        room.querySelector(".portal-key-chamber")?.append(bossElement);
+        room.classList.add("has-secret-boss");
+    }
+    
     portalTransitTimer = window.setTimeout(() => {
         if (!gameActive || !portalTravelInProgress) return;
-        if (keyToGrant) {
+        if (hasSecretBoss) {
+            statusLabel.textContent = "Void Warden awakens. Defeat it to claim the key!";
+        } else if (keyToGrant) {
             keyToGrant.collected = true;
             secretKeyRevealed = true;
             localStorage.setItem(`orbit-key-${keyToGrant.id}`, "1");
@@ -1152,20 +1262,29 @@ function startPortalTransit(target: number) {
             room.classList.add("key-collected");
             room.querySelector("small")!.textContent = `${keyToGrant.id.toUpperCase()} KEY SECURED`;
             statusLabel.textContent = "Key secured. The ending lock is open.";
+            portalTransitTimer = window.setTimeout(() => {
+                if (!gameActive || !portalTravelInProgress) return;
+                exitSecretBossRoom(target);
+            }, 1500);
+        } else {
+            exitSecretBossRoom(target);
         }
-        portalTransitTimer = window.setTimeout(() => {
-            if (!gameActive || !portalTravelInProgress) return;
-            playerX = Math.min(levels[currentLevel].length * TILE_WIDTH - playerWidth, 140 + target * TILE_WIDTH + PORTAL_SIZE + 24);
-            playerY = shipFlipped ? CEILING_Y : FLOOR_Y;
-            verticalSpeed = 0;
-            jumpCount = 0;
-            portalCooldownUntil = performance.now() + 900;
-            portalTravelInProgress = false;
-            room.remove();
-            statusLabel.textContent = keyToGrant ? "Destination reached. The ending is unlocked." : "Portal transit complete.";
-            updatePlayerPosition();
-        }, 650);
     }, 850);
+}
+
+function exitSecretBossRoom(target: number) {
+    if (!gameActive || !portalTravelInProgress) return;
+    playerX = Math.min(levels[currentLevel].length * TILE_WIDTH - playerWidth, 140 + target * TILE_WIDTH + PORTAL_SIZE + 24);
+    playerY = shipFlipped ? CEILING_Y : FLOOR_Y;
+    verticalSpeed = 0;
+    jumpCount = 0;
+    portalCooldownUntil = performance.now() + 900;
+    portalTravelInProgress = false;
+    secretBossRoomActive = false;
+    secretBoss = null;
+    document.querySelector(".portal-key-room")?.remove();
+    statusLabel.textContent = secretBossDefeated ? "Secret key claimed. The ending is unlocked." : "Portal transit complete.";
+    updatePlayerPosition();
 }
 
 function createControls() {
@@ -1226,7 +1345,14 @@ function jump() {
 function startGameLoop() {
     if (!gameActive) return;
     animationFrame = requestAnimationFrame(startGameLoop);
-    if (portalTravelInProgress) { updateTrail(); updatePlayerPosition(); return; }
+    if (portalTravelInProgress) { 
+        if (secretBossRoomActive && secretBoss && !secretBoss.defeated) {
+            updateSecretBossRoom();
+        }
+        updateTrail(); 
+        updatePlayerPosition(); 
+        return; 
+    }
     updateHeldMovement(); previousPlayerY = playerY;
     const inGravity = isInGravityZone();
     if (shipFlipped && !inGravity && !inFlippedRoute) shipFlipped = false;
@@ -1291,7 +1417,7 @@ function updateTrail() {
         element.style.top = `${index === 0 ? anchor.y : tailY}px`;
     });
 }
-function updateProjectiles() { projectiles = projectiles.filter((projectile) => { projectile.x += projectile.vx; projectile.y += projectile.vy; projectile.element.style.transform = `translate(${projectile.x}px, ${projectile.y}px)`; const box = { x: projectile.x, y: projectile.y, width: 16, height: 16 }; const obstacle = levelObstacles.find((item) => intersects(box, item)); if (obstacle) { createSplash(projectile.x, projectile.y); projectile.element.remove(); return false; } if (projectile.owner === "player") { const enemy = levelEnemies.find((item) => !item.defeated && intersects(box, { x: item.x, y: item.y, width: 48, height: 48 })); if (enemy) { enemy.defeated = true; document.querySelectorAll(".enemy")[levelEnemies.indexOf(enemy)]?.classList.add("defeated"); projectile.element.remove(); statusLabel.textContent = "Cannon hit. Sentry disabled."; return false; } const miniBoss = levelMiniBosses.find((item) => !item.defeated && intersects(box, { x: item.x, y: item.y, width: 70, height: 70 })); if (miniBoss) { miniBoss.health--; projectile.element.remove(); if (miniBoss.health <= 0) { miniBoss.defeated = true; document.querySelectorAll(".mini-boss")[levelMiniBosses.indexOf(miniBoss)]?.classList.add("defeated"); statusLabel.textContent = "Cannon fire shattered the mini-boss."; } else statusLabel.textContent = `Cannon hit. ${miniBoss.health} hit remaining.`; return false; } if (boss && !boss.defeated && intersects(box, { x: boss.x, y: boss.y, width: 128, height: 150 })) { projectile.element.remove(); damageBoss(); return false; } } else if (intersects(box, { x: playerX, y: playerY, width: playerWidth, height: playerHeight })) { projectile.element.remove(); if (shieldCharges > 0) { shieldCharges--; statusLabel.textContent = "Shield absorbed the impact."; return false; } showGameOver("A sentry round cracked your hull."); return false; } if (projectile.x < playerX - 700 || projectile.x > playerX + 700 || projectile.y < -100 || projectile.y > 500) { projectile.element.remove(); return false; } return true; }); }
+function updateProjectiles() { projectiles = projectiles.filter((projectile) => { projectile.x += projectile.vx; projectile.y += projectile.vy; projectile.element.style.transform = `translate(${projectile.x}px, ${projectile.y}px)`; const box = { x: projectile.x, y: projectile.y, width: 16, height: 16 }; const obstacle = levelObstacles.find((item) => intersects(box, item)); if (obstacle) { createSplash(projectile.x, projectile.y); projectile.element.remove(); return false; } if (projectile.owner === "player") { const enemy = levelEnemies.find((item) => !item.defeated && intersects(box, { x: item.x, y: item.y, width: 48, height: 48 })); if (enemy) { enemy.defeated = true; document.querySelectorAll(".enemy")[levelEnemies.indexOf(enemy)]?.classList.add("defeated"); projectile.element.remove(); statusLabel.textContent = "Cannon hit. Sentry disabled."; return false; } const miniBoss = levelMiniBosses.find((item) => !item.defeated && intersects(box, { x: item.x, y: item.y, width: 70, height: 70 })); if (miniBoss) { miniBoss.health--; projectile.element.remove(); if (miniBoss.health <= 0) { miniBoss.defeated = true; document.querySelectorAll(".mini-boss")[levelMiniBosses.indexOf(miniBoss)]?.classList.add("defeated"); statusLabel.textContent = "Cannon fire shattered the mini-boss."; } else statusLabel.textContent = `Cannon hit. ${miniBoss.health} hit remaining.`; return false; } if (boss && !boss.defeated && intersects(box, { x: boss.x, y: boss.y, width: 128, height: 150 })) { projectile.element.remove(); damageBoss(); return false; } if (secretBossRoomActive && secretBoss && !secretBoss.defeated && intersects(box, { x: secretBoss.x, y: secretBoss.y, width: 128, height: 150 })) { projectile.element.remove(); damageSecretBoss(); return false; } } else if (intersects(box, { x: playerX, y: playerY, width: playerWidth, height: playerHeight })) { projectile.element.remove(); if (shieldCharges > 0) { shieldCharges--; statusLabel.textContent = "Shield absorbed the impact."; return false; } showGameOver("A sentry round cracked your hull."); return false; } if (projectile.x < playerX - 700 || projectile.x > playerX + 700 || projectile.y < -100 || projectile.y > 500) { projectile.element.remove(); return false; } return true; }); }
 function createSplash(x: number, y: number) { const splash = document.createElement("div"); splash.className = "splash"; splash.style.left = `${x}px`; splash.style.top = `${y}px`; world.append(splash); window.setTimeout(() => splash.remove(), reducedEffects ? 180 : 350); }
 function intersects(first: Box, second: Box) { return first.x < second.x + second.width && first.x + first.width > second.x && first.y < second.y + second.height && first.y + first.height > second.y; }
 
@@ -1374,7 +1500,7 @@ function checkCollisions() {
     });
     levelAsteroids.forEach((asteroid, index) => { if (!asteroid.claimed && Math.abs(playerX + 24 - asteroid.x) < 42 && Math.abs(playerY + 28 - asteroid.y) < 58) { asteroid.claimed = true; const claimedAsteroids = getClaimedAsteroids(currentLevel); claimedAsteroids.add(index); saveClaimedAsteroids(currentLevel, claimedAsteroids); if (asteroid.special) { specialAsteroids++; localStorage.setItem("orbit-special-claims", String(specialAsteroids)); } else { asteroidsClaimed++; localStorage.setItem("orbit-claims", String(asteroidsClaimed)); } claimLabel.textContent = `${levelAsteroids.filter((item) => item.claimed).length} / ${levelAsteroids.length}`; statusLabel.textContent = asteroid.special ? "Special asteroid secured. Spend it in the roll wheel." : boss ? "Asteroid impact. Titan armor is cracking." : "Asteroid claimed. This one is secured permanently."; document.querySelectorAll(".asteroid")[index]?.classList.add("claimed"); damageBoss(); } });
     if (boss && playerX > boss.x - 120 && !boss.defeated) { playerX = boss.x - 125; statusLabel.textContent = "Titan Core blocks the beacon. Claim asteroids to break it."; updatePlayerPosition(); }
-    if (playerX > levels[currentLevel].length * TILE_WIDTH - 100 && gameStarted && (!boss || boss.defeated)) showWinScreen();
+    if (playerX > levels[currentLevel].length * TILE_WIDTH - 100 && gameStarted && (!boss || boss.defeated) && !endGoalLocked) showWinScreen();
 }
 
 function activatePowerup(kind: PowerupKind) { if (kind === "shield") { shieldCharges += 1; statusLabel.textContent = "Shield bubble online. One hit will be absorbed."; } else if (kind === "boost") { boostTimer = 420; statusLabel.textContent = "Thruster boost online. Right movement is amplified."; } else if (kind === "rapid") { rapidUntil = Math.max(rapidUntil, performance.now() + 10000); rapidTimer = Math.max(0, rapidUntil - performance.now()); rapidCannonUntil = Math.max(rapidCannonUntil, rapidUntil); statusLabel.textContent = "Rapid fire online for 10 seconds. Hold Shoot."; } else { cannonTimer = Number.POSITIVE_INFINITY; statusLabel.textContent = "Cannon online until hull breach. Press E or Shoot."; } updatePowerupHud(); }
