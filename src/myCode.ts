@@ -159,6 +159,7 @@ let shieldCharges = 0;
 let boostTimer = 0;
 let rapidTimer = 0;
 let rapidUntil = 0;
+let rapidCannonUntil = 0;
 let cannonTimer = 0;
 let playerShotTimer = 0;
 let shootingHeld = false;
@@ -822,7 +823,19 @@ function buildLevel(levelIndex: number) {
     const level = levels[levelIndex];
     const claimedAsteroids = getClaimedAsteroids(levelIndex);
     levelAsteroids = level.asteroids.map((index, asteroidIndex) => ({ x: 140 + index * TILE_WIDTH, y: 215 - (index % 2) * 55, claimed: claimedAsteroids.has(asteroidIndex), special: Boolean(level.secret) || (level.specialAsteroids ?? []).includes(index) }));
-    levelObstacles = level.walls.map((index, wallIndex) => ({ x: 140 + index * TILE_WIDTH, y: wallIndex % 2 ? 250 : 330, width: wallIndex % 2 ? 105 : 70, height: wallIndex % 2 ? 150 : 70 }));
+    const groundObstacles = level.walls.map((index, wallIndex) => ({ x: 140 + index * TILE_WIDTH, y: wallIndex % 2 ? 250 : 330, width: wallIndex % 2 ? 105 : 70, height: wallIndex % 2 ? 150 : 70 }));
+    // The ringed planet adds obstacles in the upper lane. They can be passed
+    // underneath on the normal orbit, or by diving with Down after a flip.
+    const airborneObstacles: Obstacle[] = level.prestige
+        ? level.walls.filter((_, wallIndex) => wallIndex % 2 === 0).map((index, wallIndex) => ({
+            x: 140 + index * TILE_WIDTH,
+            y: 112 + (wallIndex % 2) * 22,
+            width: 92,
+            height: 52,
+            airborne: true,
+        }))
+        : [];
+    levelObstacles = [...groundObstacles, ...airborneObstacles];
     levelHazards = [...level.spikes.map((index) => ({ x: 140 + index * TILE_WIDTH, y: 380, width: 76, height: 20, kind: "spikes" as const })), ...level.gravity.map((index) => ({ x: 140 + index * TILE_WIDTH, y: 110, width: 115, height: 250, kind: "gravity" as const }))];
     levelEnemies = level.enemies.map((index) => ({ x: 140 + index * TILE_WIDTH, y: 285, defeated: false }));
     levelPowerups = (level.powerups ?? []).map((powerup) => ({ x: 140 + powerup.index * TILE_WIDTH, y: 170, kind: powerup.kind, collected: false }));
