@@ -1070,13 +1070,15 @@ function createPlayer() {
 
 function createWorldObjects() {
     createSpaceBackdrop();
+    createMapBoundaries();
     levelObstacles.forEach((obstacle) => {
         const element = document.createElement("div");
-        element.className = `obstacle ${obstacle.airborne ? "airborne" : ""} ${obstacle.barrier ? "flipped-barrier" : ""} ${obstacle.goalLock ? "goal-lock" : ""}`;
+        element.className = `obstacle ${obstacle.airborne ? "airborne" : ""} ${obstacle.barrier ? "flipped-barrier" : ""} ${obstacle.goalLock ? "goal-lock" : ""} ${obstacle.boundary ? "boundary" : ""}`;
         Object.assign(element.style, { left: `${obstacle.x}px`, top: `${obstacle.y}px`, width: `${obstacle.width}px`, height: `${obstacle.height}px` });
         if (obstacle.goalLock) { element.innerHTML = `<span>KEY REQUIRED</span><b>🔒</b>`; element.setAttribute("aria-label", "Locked ending gate. A portal key is required."); }
         else if (obstacle.barrier) element.setAttribute("aria-label", "Flipped planet barrier");
         else if (obstacle.airborne) element.setAttribute("aria-label", "Airborne planetary obstacle");
+        else if (obstacle.boundary) element.setAttribute("aria-label", "Map boundary");
         world.append(element);
     });
     levelAsteroids.forEach((asteroid) => { const element = document.createElement("div"); element.className = `asteroid ${asteroid.special ? "special" : ""} ${asteroid.claimed ? "claimed" : ""}`; element.textContent = asteroid.special ? "✹" : "✦"; element.style.left = `${asteroid.x}px`; element.style.top = `${asteroid.y}px`; world.append(element); });
@@ -1097,6 +1099,25 @@ function createSpaceBackdrop() {
     backdrop.setAttribute("aria-hidden", "true");
     backdrop.innerHTML = `<i class="star-field"></i><i class="system-sun"></i><i class="orbit orbit-one"></i><i class="orbit orbit-two"></i><i class="world-planet"></i><i class="world-moon"></i><i class="distant-planet"></i>`;
     world.append(backdrop);
+}
+
+function createMapBoundaries() {
+    const level = levels[currentLevel];
+    const levelWidth = level.length * TILE_WIDTH;
+    const leftBoundary = { x: -100, y: -200, width: 100, height: 800, barrier: true };
+    const rightBoundary = { x: levelWidth, y: -200, width: 100, height: 800, barrier: true };
+    const topBoundary = { x: -100, y: -200, width: levelWidth + 200, height: 100, barrier: true };
+    const bottomBoundary = { x: -100, y: FLOOR_Y + 100, width: levelWidth + 200, height: 100, barrier: true };
+    
+    [leftBoundary, rightBoundary, topBoundary, bottomBoundary].forEach((boundary) => {
+        const element = document.createElement("div");
+        element.className = "obstacle boundary";
+        Object.assign(element.style, { left: `${boundary.x}px`, top: `${boundary.y}px`, width: `${boundary.width}px`, height: `${boundary.height}px` });
+        element.setAttribute("aria-label", "Map boundary");
+        world.append(element);
+    });
+    
+    levelObstacles.push(leftBoundary, rightBoundary, topBoundary, bottomBoundary);
 }
 
 function createLevelKeyObject() {
