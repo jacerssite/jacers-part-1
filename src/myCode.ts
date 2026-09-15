@@ -627,7 +627,7 @@ function getClaimedAsteroids(levelIndex: number): Set<number> {
 function saveClaimedAsteroids(levelIndex: number, claimed: Set<number>) { localStorage.setItem(`orbit-asteroids-${levelIndex}`, JSON.stringify([...claimed])); }
 
 function isSecretLevelUnlocked(level: Level) {
-    if (level.secretId === "prestige-gate") return localStorage.getItem("orbit-key-prestige-gate") === "1" || getCompletedLevelCount() >= levels.length - 1;
+    if (level.secretId === "prestige-gate") return localStorage.getItem("orbit-key-prestige-gate") === "1" || getNormalCompletedLevelCount() >= getNormalRouteCount();
     return level.secretId === "eclipse" ? localStorage.getItem("orbit-key-eclipse") === "1" || localStorage.getItem("orbit-secret-unlocked") === "1" : level.secretId ? localStorage.getItem(`orbit-key-${level.secretId}`) === "1" : localStorage.getItem("orbit-secret-unlocked") === "1";
 }
 
@@ -1127,11 +1127,14 @@ function updatePowerupHud() { const inventory = getInventory(); document.querySe
 function damageBoss() { if (!boss || boss.defeated) return; boss.health--; bossLabel.textContent = `TITAN ${boss.health}/${boss.maxHealth}`; const bossElement = document.querySelector(".boss"); bossElement?.classList.add("hit"); window.setTimeout(() => bossElement?.classList.remove("hit"), 180); if (boss.health <= 0) { boss.defeated = true; bossElement?.classList.add("defeated"); statusLabel.textContent = "Titan Core shattered. Reach the beacon for your reward."; } }
 
 function getPrestigeRequirement(level: number) { return { normal: 100 + level * 50, special: 10 + level * 5 }; }
-function getCompletedLevelCount() { return levels.filter((level, index) => !level.secret && !level.prestige && localStorage.getItem(`orbit-level-complete-${index}`) === "1").length; }
+function getNormalRouteCount() { return levels.filter((level) => !level.secret && !level.prestige).length; }
+function getNormalCompletedLevelCount() { return levels.filter((level, index) => !level.secret && !level.prestige && localStorage.getItem(`orbit-level-complete-${index}`) === "1").length; }
+function getCompletedLevelCount() { return levels.filter((_, index) => localStorage.getItem(`orbit-level-complete-${index}`) === "1").length; }
+function hasClearedPrestigeGate() { return localStorage.getItem("orbit-level-complete-prestige-gate") === "1" || levels.some((level, index) => level.secretId === "prestige-gate" && localStorage.getItem(`orbit-level-complete-${index}`) === "1"); }
+function canClaimPrestige() { const requirement = getPrestigeRequirement(prestigeLevel); return prestigeLevel < prestigeMax && hasClearedPrestigeGate() && getNormalCompletedLevelCount() >= getNormalRouteCount() && asteroidsClaimed >= requirement.normal && specialAsteroids >= requirement.special; }
 function tryPrestige() {
-    if (prestigeLevel >= prestigeMax || localStorage.getItem("orbit-level-complete-prestige-gate") !== "1" || getCompletedLevelCount() < 20) return false;
+    if (!canClaimPrestige()) return false;
     const requirement = getPrestigeRequirement(prestigeLevel);
-    if (asteroidsClaimed < requirement.normal || specialAsteroids < requirement.special) return false;
     asteroidsClaimed -= requirement.normal;
     specialAsteroids -= requirement.special;
     prestigeLevel++;
@@ -1140,9 +1143,9 @@ function tryPrestige() {
     localStorage.setItem("orbit-prestige", String(prestigeLevel));
     return true;
 }
-function isSkinUnlocked(skin: { required: number; boss?: boolean; secret?: boolean; prestige?: number; golden?: boolean }) { return localStorage.getItem("orbit-unlock-skins") === "1" || (skin.golden ? getCompletedLevelCount() >= 20 : skin.prestige !== undefined ? prestigeLevel >= skin.prestige : skin.boss ? localStorage.getItem("orbit-boss-defeated") === "1" : skin.secret ? localStorage.getItem("orbit-secret-unlocked") === "1" : asteroidsClaimed >= skin.required); }
+function isSkinUnlocked(skin: { required: number; boss?: boolean; secret?: boolean; prestige?: number; golden?: boolean }) { return localStorage.getItem("orbit-unlock-skins") === "1" || (skin.golden ? getNormalCompletedLevelCount() >= getNormalRouteCount() : skin.prestige !== undefined ? prestigeLevel >= skin.prestige : skin.boss ? localStorage.getItem("orbit-boss-defeated") === "1" : skin.secret ? localStorage.getItem("orbit-secret-unlocked") === "1" : asteroidsClaimed >= skin.required); }
 function getUnlockedSkinCount() { return skins.filter(isSkinUnlocked).length; }
-function isAvatarUnlocked(avatar: AvatarStyle) { return localStorage.getItem("orbit-unlock-avatars") === "1" || (avatar.golden ? getCompletedLevelCount() >= 20 : avatar.prestige !== undefined ? prestigeLevel >= avatar.prestige : avatar.jackpot ? localStorage.getItem("orbit-jackpot-avatar") === "1" : true); }
-function isTrailUnlocked(trail: TrailStyle) { return localStorage.getItem("orbit-unlock-trails") === "1" || (trail.golden ? getCompletedLevelCount() >= 20 : trail.prestige !== undefined ? prestigeLevel >= trail.prestige : trail.boss ? localStorage.getItem("orbit-boss-defeated") === "1" : trail.secret ? localStorage.getItem("orbit-secret-unlocked") === "1" : asteroidsClaimed >= trail.required); }
+function isAvatarUnlocked(avatar: AvatarStyle) { return localStorage.getItem("orbit-unlock-avatars") === "1" || (avatar.golden ? getNormalCompletedLevelCount() >= getNormalRouteCount() : avatar.prestige !== undefined ? prestigeLevel >= avatar.prestige : avatar.jackpot ? localStorage.getItem("orbit-jackpot-avatar") === "1" : true); }
+function isTrailUnlocked(trail: TrailStyle) { return localStorage.getItem("orbit-unlock-trails") === "1" || (trail.golden ? getNormalCompletedLevelCount() >= getNormalRouteCount() : trail.prestige !== undefined ? prestigeLevel >= trail.prestige : trail.boss ? localStorage.getItem("orbit-boss-defeated") === "1" : trail.secret ? localStorage.getItem("orbit-secret-unlocked") === "1" : asteroidsClaimed >= trail.required); }
 function getUnlockedTrailCount() { return trails.filter(isTrailUnlocked).length; }
 function formatTime(milliseconds: number) { const total = Math.max(0, Math.floor(milliseconds)); const minutes = Math.floor(total / 60000).toString().padStart(2, "0"); const seconds = Math.floor(total / 1000 % 60).toString().padStart(2, "0"); const millis = (total % 1000).toString().padStart(3, "0"); return `${minutes}:${seconds}.${millis}`; }
