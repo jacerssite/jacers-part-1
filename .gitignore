@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+*.tmp-ui-browser
+*.tmp-ui-browser-2
+*.tmp-ui-browser-3
+%SystemDrive%
+

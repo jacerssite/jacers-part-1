@@ -50,6 +50,10 @@ h1 em { color: #ed7657; font-style: normal; }
 .menu-button { min-width: 156px; padding: 14px 24px; border: 1px solid #f6c46e; border-radius: 3px; color: #101b2b; background: #f6c46e; font: 600 .9rem 'Space Grotesk', sans-serif; cursor: pointer; }
 .menu-button:hover, .menu-button:focus-visible { color: #f3f5e9; background: #ed7657; outline: none; transform: translateY(-2px); }
 .menu-actions { display: grid; grid-template-columns: repeat(2, minmax(156px, 1fr)); gap: 10px; width: min(340px, 90vw); }
+.menu-actions .claim-prestige { grid-column: 1 / -1; justify-self: center; }
+.shop-odds { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 14px; max-width: 520px; margin: 18px 0; color: #c4d1bd; font: .68rem 'DM Mono', monospace; text-align: center; }
+.shop-odds b { width: 100%; color: #f6c46e; text-transform: uppercase; letter-spacing: 1px; }
+.shop-odds span { padding: 5px 8px; border: 1px solid #385267; background: #101b2b; }
 .secondary-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 18px; margin-top: 18px; }
 .level-list { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; max-width: 520px; margin-bottom: 18px; }
 .level-menu { align-content: start; }
@@ -77,6 +81,12 @@ h1 em { color: #ed7657; font-style: normal; }
 	background: linear-gradient(#1c4054 0%, #19354a 57%, #d06e51 57%, #ed9a5d 58%, #243f42 58%, #182b34 100%);
 	box-shadow: 0 20px 70px #08121f99;
 }
+#game-world { background: radial-gradient(ellipse at 18% 18%, #447bc155 0 4%, transparent 5%), radial-gradient(ellipse at 72% 24%, #9ec9ff33 0 3%, transparent 4%), radial-gradient(circle at 80% 8%, #fff 0 1px, transparent 2px), radial-gradient(circle at 32% 38%, #fff 0 1px, transparent 2px), #102c42; }
+body.prestige-theme #game-world { background: radial-gradient(ellipse at 68% 18%, #b879ff77 0 7%, #52307655 8% 12%, transparent 13%), radial-gradient(circle at 20% 30%, #fff 0 1px, transparent 2px), radial-gradient(circle at 52% 12%, #fff 0 1px, transparent 2px), #21153e; }
+#game-world.flipped-route { background: radial-gradient(ellipse at 32% 82%, #ffffffcc 0 5%, #cab6ff66 6% 10%, transparent 11%), radial-gradient(ellipse at 75% 90%, #f5f0ff99 0 4%, transparent 5%), radial-gradient(circle at 15% 30%, #fff 0 1px, transparent 2px), #5b3285; }
+#game-world.flipped-route::before { top: 0; background: #f5f0ff; box-shadow: 0 0 25px #fff; }
+#game-world.flipped-route .enemy, #game-world.flipped-route .mini-boss, #game-world.flipped-route .hazard, #game-world.flipped-route .obstacle { transform: rotate(180deg); }
+#game-world.flipped-route .mini-boss { border-color: #fff; background: #5a2d78; box-shadow: 0 0 0 8px #fff4, 0 0 32px #d9b8ff, inset 0 0 18px #fff; }
 
 .game-frame::before, .game-frame::after { position: absolute; content: ''; pointer-events: none; }
 .game-frame::before { inset: 0; z-index: 2; background: linear-gradient(90deg, #15263a88, transparent 20%, transparent 80%, #15263a88); }

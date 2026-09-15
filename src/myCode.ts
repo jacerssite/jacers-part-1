@@ -20,7 +20,8 @@ type MiniBoss = { x: number; y: number; health: number; maxHealth: number; defea
 type TrailStyle = { name: string; color: string; required: number; effect: "ember" | "comet" | "spark" | "ribbon" | "arc"; secret?: boolean; boss?: boolean; golden?: boolean; prestige?: number };
 type PrestigeShipArt = "stellar-guard" | "quantum-dancer" | "cosmic-queen" | "void-knight" | "eclipse-oracle" | "infinity-pilot" | "stellar-legend";
 type AvatarStyle = { name: string; color: string; shape: "classic" | "dart" | "ring" | "blade"; required: number; image?: string; cssArt?: PrestigeShipArt; defaultSkin: number; prestige?: number; golden?: boolean; jackpot?: boolean };
-type Level = { name: string; briefing: string; length: number; asteroids: number[]; walls: number[]; enemies: number[]; spikes: number[]; gravity: number[]; portals?: number[]; flip?: number[]; powerups?: { index: number; kind: PowerupKind }[]; key?: number; secretId?: string; specialAsteroids?: number[]; miniBosses?: number[]; boss?: boolean; bossIndex?: number; secret?: boolean; prestige?: boolean };
+type FlippedRoute = { walls: number[]; enemies: number[]; spikes: number[]; gravity: number[]; key?: number };
+type Level = { name: string; briefing: string; length: number; asteroids: number[]; walls: number[]; enemies: number[]; spikes: number[]; gravity: number[]; portals?: number[]; flip?: number[]; flippedRoute?: FlippedRoute; powerups?: { index: number; kind: PowerupKind }[]; key?: number; secretId?: string; specialAsteroids?: number[]; miniBosses?: number[]; boss?: boolean; bossIndex?: number; secret?: boolean; prestige?: boolean };
 type Rarity = "Common" | "Uncommon" | "Rare" | "Epic" | "Legendary";
 type CosmeticGroup = "skin" | "trail" | "avatar";
 
@@ -111,6 +112,9 @@ const trails: TrailStyle[] = [
     { name: "Stellar Ribbon", color: "#00ff66", required: 0, effect: "ribbon", prestige: 3 },
     { name: "Infinity Spark", color: "#ff6600", required: 0, effect: "spark", prestige: 3 },
 ];
+// Loadout order is deliberate: common at the top, Legendary at the bottom.
+function trailRarityRank(trail: TrailStyle) { return trail.golden || (trail.prestige ?? 0) >= 3 ? 3 : trail.boss || (trail.prestige ?? 0) >= 2 ? 2 : trail.secret || (trail.prestige ?? 0) >= 1 || trail.required >= 30 ? 1 : 0; }
+trails.sort((first, second) => trailRarityRank(first) - trailRarityRank(second));
 
 const avatars: AvatarStyle[] = [
     { name: "Classic", color: "#ed7657", shape: "classic", required: 0, defaultSkin: 0 },
@@ -155,6 +159,7 @@ let trailPositions: { x: number; y: number }[] = [];
 let trailDirection = 1;
 let projectileTimer = 0;
 let trailTimer = 0;
+let trailMovementFrames = 0;
 let shieldCharges = 0;
 let boostTimer = 0;
 let rapidTimer = 0;
@@ -176,6 +181,9 @@ let levelStartedAt = 0;
 let elapsedMilliseconds = 0;
 let shipFlipped = false;
 let portalCooldownUntil = 0;
+let inFlippedRoute = false;
+let flippedRouteKeyCollected = false;
+let lastDownPressAt = 0;
 let spinInProgress = false;
 let activePlanet: "normal" | "prestige" = "normal";
 const pressedKeys = new Set<string>();
@@ -185,6 +193,7 @@ const playerWidth = 48;
 const playerHeight = 58;
 const powerupPrices: Record<PowerupKind, number> = { shield: 8, boost: 10, rapid: 12, cannon: 15 };
 const powerupLabels: Record<PowerupKind, string> = { shield: "Shield", boost: "Boost", rapid: "Rapid Fire", cannon: "Cannon" };
+const prestigeRouteNames = ["Violet Meridian", "Moonfall Circuit", "Amethyst Rift", "Crown of Saturn", "Lilac Nebula", "Oracle's Reach", "Prismatic Grave", "The White Eclipse", "Sovereign Drift", "Astral Citadel", "Veil of Io", "Radiant Ruin", "Dusk Cathedral", "Nova Labyrinth", "Purple Eventide", "The Inverted Sea", "Halo of Ash", "Sable Aurora", "Titan's Throne", "Infinity Crown"];
 
 function loadCustomLevels() {
     try {
@@ -196,7 +205,7 @@ function loadCustomLevels() {
         levels.splice(Math.min(index, levels.length), 0, { name: `Frontier ${index + 1}`, briefing: "A longer route on the blue planet. Reach the beacon and claim the whole lane.", length: 28 + index, asteroids: [3, 7, 11, 15, 19, 23], walls: [5, 9, 13, 17, 21, 25], enemies: [8, 16, 24], spikes: [6, 14, 22], gravity: [10, 20], portals: [12, 26], flip: [20], boss: index === 19 });
     }
     for (let index = 0; index < 20; index++) {
-        levels.push({ name: `Prestige ${index + 1}`, briefing: "A longer route around the ringed planet. Planetary flip fields reveal the upper lane.", length: 38 + index, asteroids: [3, 8, 13, 18, 23, 28, 33], walls: [5, 10, 15, 20, 25, 30], enemies: [7, 17, 27, 35], spikes: [6, 14, 24, 32], gravity: [11, 21, 31], portals: [16, 29], flip: [11, 31], boss: index === 19, prestige: true });
+        levels.push({ name: prestigeRouteNames[index], briefing: "A longer route around the ringed planet. Planetary flip fields reveal the upper lane.", length: 38 + index, asteroids: [3, 8, 13, 18, 23, 28, 33], walls: [5, 10, 15, 20, 25, 30], enemies: [7, 17, 27, 35], spikes: [6, 14, 24, 32], gravity: [11, 21, 31], portals: [16, 29], flip: [11, 31], boss: index === 19, prestige: true });
     }
 }
 
@@ -221,6 +230,7 @@ function showMenu() {
     if (hasClearedPrestigeGate() && prestigeLevel < prestigeMax) {
         const claimPrestige = createMenuButton(canClaimPrestige() ? "Claim prestige" : "Claim prestige / requirements unmet", () => { if (tryPrestige()) showMenu(); });
         claimPrestige.disabled = !canClaimPrestige();
+        claimPrestige.classList.add("claim-prestige");
         menuActions.append(claimPrestige);
     }
     const secondaryActions = document.createElement("div"); secondaryActions.className = "secondary-actions"; secondaryActions.append(createTextButton("Special asteroid odds", showDropRates), createTextButton("Credits", showCredits));
@@ -408,6 +418,12 @@ function showLevelMaker() {
     const grid = document.createElement("div"); grid.className = "maker-grid";
     const cells = Array.from({ length: 144 }, (_, index) => { const cell = document.createElement("button"); cell.type = "button"; cell.className = "maker-cell empty"; cell.dataset.kind = "empty"; cell.textContent = ""; cell.setAttribute("aria-label", `Tile ${index + 1}`); cell.addEventListener("click", () => { history.push(cells.map((item) => item.dataset.kind ?? "empty")); const next = deleteMode ? "empty" : selectedTile; cell.dataset.kind = next; cell.className = `maker-cell ${next}`; cell.textContent = next === "empty" ? "" : next === "gravity" ? "" : ""; }); grid.append(cell); return cell; });
     const restore = (snapshot: string[]) => cells.forEach((cell, index) => { const kind = snapshot[index] ?? "empty"; cell.dataset.kind = kind; cell.className = `maker-cell ${kind}`; cell.textContent = ""; });
+    const flippedTab = document.createElement("button"); flippedTab.className = "maker-tool-button"; flippedTab.type = "button"; flippedTab.textContent = "Flipped planet"; flippedTab.hidden = true;
+    const flippedGrid = document.createElement("div"); flippedGrid.className = "maker-grid"; flippedGrid.hidden = true;
+    const flippedCells = Array.from({ length: 144 }, (_, index) => { const cell = document.createElement("button"); cell.type = "button"; cell.className = "maker-cell empty"; cell.dataset.kind = "empty"; cell.setAttribute("aria-label", `Flipped tile ${index + 1}`); cell.addEventListener("click", () => { const next = deleteMode ? "empty" : selectedTile; cell.dataset.kind = next; cell.className = `maker-cell ${next}`; }); flippedGrid.append(cell); return cell; });
+    const showMainGrid = () => { grid.hidden = false; flippedGrid.hidden = true; buildMode.textContent = "Build"; };
+    flippedTab.addEventListener("click", () => { grid.hidden = true; flippedGrid.hidden = false; buildMode.textContent = "Flipped build"; });
+    grid.addEventListener("click", () => { if (cells.some((cell) => cell.dataset.kind === "gravity")) flippedTab.hidden = false; });
     undo.addEventListener("click", () => { const snapshot = history.pop(); if (snapshot) restore(snapshot); });
     clear.addEventListener("click", () => { history.push(cells.map((item) => item.dataset.kind ?? "empty")); restore([]); });
     buildMode.addEventListener("click", () => { deleteMode = false; modeLabel.textContent = "BUILD MODE"; buildMode.classList.add("selected"); eraseMode.classList.remove("selected"); });
@@ -415,9 +431,10 @@ function showLevelMaker() {
     const save = createMenuButton("Save custom route", () => {
         const level: Level = { name: `Workshop ${Date.now().toString().slice(-4)}`, briefing: "A route assembled in the grid workshop.", length: 24, asteroids: [], walls: [], enemies: [], spikes: [], gravity: [], portals: [], flip: [], specialAsteroids: [], miniBosses: [] };
         cells.forEach((cell, index) => { const tile = cell.dataset.kind; const column = index % 24; if (tile === "asteroid" || tile === "special") level.asteroids.push(column + 1); if (tile === "special") level.specialAsteroids?.push(column + 1); if (tile === "wall") level.walls.push(column + 1); if (tile === "enemy") level.enemies.push(column + 1); if (tile === "spike") level.spikes.push(column + 1); if (tile === "gravity") level.gravity.push(column + 1); if (tile === "portal") level.portals?.push(column + 1); if (tile === "miniBoss") level.miniBosses?.push(column + 1); if (tile === "titan") { level.boss = true; level.bossIndex = column + 1; } });
+        if (level.gravity.length) { const route: FlippedRoute = { walls: [], enemies: [], spikes: [], gravity: [], key: 19 }; flippedCells.forEach((cell, index) => { const column = index % 24 + 1; if (cell.dataset.kind === "wall") route.walls.push(column); if (cell.dataset.kind === "enemy") route.enemies.push(column); if (cell.dataset.kind === "spike") route.spikes.push(column); if (cell.dataset.kind === "gravity") route.gravity.push(column); if (cell.dataset.kind === "asteroid" || cell.dataset.kind === "special") route.key = column; }); level.flippedRoute = route; }
         const saved = JSON.parse(localStorage.getItem("orbit-custom-levels") ?? "[]") as Level[]; saved.push(level); localStorage.setItem("orbit-custom-levels", JSON.stringify(saved)); levels.push(level); showLevelMenu();
     });
-    menu.append(toolbar, grid, palette, save, createTextButton("Back to tester", showTesterPanel)); document.body.replaceChildren(menu);
+    toolbar.append(flippedTab); menu.append(toolbar, grid, flippedGrid, palette, save, createTextButton("Main route", showMainGrid), createTextButton("Back to tester", showTesterPanel)); document.body.replaceChildren(menu);
 }
 
 function createTextButton(text: string, action: () => void) {
@@ -502,7 +519,10 @@ function showShop() {
         }, 850);
     });
     wheel.append(roll);
-    menu.append(currency, grid, wheel, createTextButton("View special asteroid odds", showDropRates), createTextButton("Mission select", showLevelMenu), createTextButton("Main menu", showMenu), createPageCounter());
+    const odds = document.createElement("section");
+    odds.className = "shop-odds";
+    odds.innerHTML = `<b>Special asteroid odds</b>${(Object.keys(SPECIAL_ASTEROID_ODDS) as Rarity[]).map((rarity) => `<span>${rarity} ${SPECIAL_ASTEROID_ODDS[rarity]}%</span>`).join("")}`;
+    menu.append(currency, grid, wheel, odds, createTextButton("Mission select", showLevelMenu), createTextButton("Main menu", showMenu), createPageCounter());
     document.body.replaceChildren(menu);
 }
 
@@ -708,6 +728,12 @@ function showTesterPanel() {
         label.append(input, document.createTextNode(`Unlock all ${kind}`)); unlocks.append(label);
     });
     form.append(unlocks);
+    const unlockEverySkin = createTextButton("Unlock every skin, including special skins", () => {
+        localStorage.setItem("orbit-unlock-skins", "1");
+        skins.forEach((_, index) => unlockSpinCosmetic("skin", index));
+        showTesterPanel();
+    });
+    form.append(unlockEverySkin);
     const levelTitle = document.createElement("p");
     levelTitle.className = "setting-title";
     levelTitle.textContent = "Unlock levels";
@@ -844,10 +870,44 @@ function buildLevel(levelIndex: number) {
     boss = level.boss || level.secret ? { x: 140 + (level.length - 2) * TILE_WIDTH, y: 205, health: level.asteroids.length, maxHealth: level.asteroids.length, defeated: false } : null;
 }
 
+function redrawRouteObjects() {
+    Array.from(world.children).forEach((element) => { if (element !== playerLabel) element.remove(); });
+    createWorldObjects();
+}
+
+function enterFlippedRoute() {
+    if (inFlippedRoute) return;
+    inFlippedRoute = true;
+    const route = levels[currentLevel].flippedRoute ?? { walls: [3, 7, 11, 15], enemies: [5, 13], spikes: [9], gravity: [2, 17], key: 19 };
+    levelObstacles = route.walls.map((index) => ({ x: 140 + index * TILE_WIDTH, y: 118, width: 92, height: 52, airborne: true }));
+    levelHazards = [...route.spikes.map((index) => ({ x: 140 + index * TILE_WIDTH, y: 74, width: 76, height: 20, kind: "spikes" as const })), ...route.gravity.map((index) => ({ x: 140 + index * TILE_WIDTH, y: 80, width: 115, height: 270, kind: "gravity" as const }))];
+    levelEnemies = [...route.enemies, 6, 16].map((index) => ({ x: 140 + index * TILE_WIDTH, y: 110, defeated: false }));
+    levelPowerups = []; levelMiniBosses = [{ x: 140 + Math.max(2, (route.key ?? 19) - 2) * TILE_WIDTH, y: 92, health: 3, maxHealth: 3, defeated: false }]; boss = null; levelKey = null;
+    playerX = 120; playerY = CEILING_Y; verticalSpeed = 0; jumpCount = 0;
+    world.classList.add("flipped-route");
+    statusLabel.textContent = "FLIPPED PLANET: defeat the Dark Knight guarding the key, then double-tap Down in anti-gravity.";
+    redrawRouteObjects();
+    showPlanetaryTransition("ENTERING FLIPPED PLANET");
+}
+
+function leaveFlippedRoute() {
+    inFlippedRoute = false; shipFlipped = false;
+    world.classList.remove("flipped-route");
+    buildLevel(currentLevel);
+    playerX = Math.max(120, 140 + (levels[currentLevel].flip?.[0] ?? 2) * TILE_WIDTH + 140); playerY = FLOOR_Y; verticalSpeed = 0; jumpCount = 0;
+    statusLabel.textContent = "Exit key secured. You returned to the main route.";
+    redrawRouteObjects();
+    showPlanetaryTransition("RETURNING TO MAIN ORBIT");
+}
+
+function showPlanetaryTransition(text: string) {
+    const transition = document.createElement("div"); transition.className = "planet-transition prestige"; transition.innerHTML = `<span>${text}</span>`; document.body.append(transition); window.setTimeout(() => transition.remove(), 1100);
+}
+
 function startGame(levelIndex = currentLevel) {
     currentLevel = levelIndex;
     buildLevel(currentLevel);
-    playerX = 120; playerY = 300; verticalSpeed = 0; jumpCount = 0; projectiles = []; trailElement = []; trailPositions = []; trailDirection = 1; projectileTimer = 0; trailTimer = 0; playerShotTimer = 0; shieldCharges = 0; boostTimer = 0; rapidTimer = 0; rapidUntil = 0; rapidCannonUntil = 0; cannonTimer = 0; gameStarted = false; gameActive = true; previousPlayerY = playerY; levelStartedAt = performance.now(); elapsedMilliseconds = 0; shipFlipped = false; portalCooldownUntil = 0;
+    playerX = 120; playerY = 300; verticalSpeed = 0; jumpCount = 0; projectiles = []; trailElement = []; trailPositions = []; trailDirection = 1; projectileTimer = 0; trailTimer = 0; playerShotTimer = 0; shieldCharges = 0; boostTimer = 0; rapidTimer = 0; rapidUntil = 0; rapidCannonUntil = 0; cannonTimer = 0; gameStarted = false; gameActive = true; previousPlayerY = playerY; levelStartedAt = performance.now(); elapsedMilliseconds = 0; shipFlipped = false; inFlippedRoute = false; flippedRouteKeyCollected = false; portalCooldownUntil = 0;
     document.body.innerHTML = "";
     createGameShell(); createPlayer(); createWorldObjects(); createControls(); startGameLoop();
 }
@@ -920,6 +980,7 @@ function createWorldObjects() {
     levelMiniBosses.forEach((miniBoss) => { const element = document.createElement("div"); element.className = "mini-boss dark-knight"; element.setAttribute("aria-label", "Dark Knight guardian"); element.style.left = `${miniBoss.x}px`; element.style.top = `${miniBoss.y}px`; world.append(element); });
     levelPowerups.forEach((powerup) => { const element = document.createElement("div"); element.className = `powerup ${powerup.kind}`; element.textContent = powerup.kind === "shield" ? "◇" : powerup.kind === "rapid" ? "ϟ" : powerup.kind === "cannon" ? "✦" : "»"; element.style.left = `${powerup.x}px`; element.style.top = `${powerup.y}px`; element.setAttribute("aria-label", `${powerup.kind} powerup`); world.append(element); });
     if (levelKey) { const element = document.createElement("div"); element.className = `level-key ${levelKey.collected ? "collected" : ""}`; element.textContent = "⚿"; element.style.left = `${levelKey.x}px`; element.style.top = `${levelKey.y}px`; element.setAttribute("aria-label", "Secret level key"); world.append(element); }
+    if (inFlippedRoute && !flippedRouteKeyCollected) { const routeKey = document.createElement("div"); routeKey.className = "level-key flipped-route-key"; routeKey.textContent = "⚿"; routeKey.style.left = `${140 + (levels[currentLevel].flippedRoute?.key ?? 19) * TILE_WIDTH}px`; routeKey.style.top = "170px"; routeKey.setAttribute("aria-label", "Flipped planet exit key"); world.append(routeKey); }
     (levels[currentLevel].portals ?? []).forEach((index) => { const element = document.createElement("div"); element.className = "portal"; element.textContent = "↔"; element.style.left = `${140 + index * TILE_WIDTH}px`; element.style.top = "175px"; element.setAttribute("aria-label", "Level portal"); world.append(element); });
     if (boss) { const element = document.createElement("div"); element.className = "boss"; element.style.left = `${boss.x}px`; element.style.top = `${boss.y}px`; world.append(element); }
     const beacon = document.createElement("div"); beacon.className = "beacon"; beacon.style.left = `${(levels[currentLevel].length - 1) * TILE_WIDTH + 140}px`; world.append(beacon);
@@ -949,15 +1010,15 @@ function createHoldButton(className: string, text: string, action: () => void) {
 function handleKeyDown(event: KeyboardEvent) { if (!gameActive) return; if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", " "].includes(event.key)) event.preventDefault(); const key = event.key.toLowerCase(); if (pressedKeys.has(key)) return; pressedKeys.add(key); if (event.key === "ArrowUp" || event.key === " " || key === "w") jump(); if (event.key === "ArrowDown" || key === "s") moveDown(); if (key === "e") { shootingHeld = true; shoot(); } }
 function handleKeyUp(event: KeyboardEvent) { pressedKeys.delete(event.key.toLowerCase()); if (event.key.toLowerCase() === "e") shootingHeld = false; }
 function updateHeldMovement() { if (pressedKeys.has("arrowleft") || pressedKeys.has("a")) moveLeft(4); if (pressedKeys.has("arrowright") || pressedKeys.has("d")) moveRight(4); }
-function moveLeft(distance = 38) { playerX = Math.max(20, playerX - distance * (boostTimer > 0 ? 1.7 : 1)); gameStarted = true; updatePlayerPosition(); }
-function moveRight(distance = 38) { playerX = Math.min(levels[currentLevel].length * TILE_WIDTH, playerX + distance * (boostTimer > 0 ? 1.7 : 1)); gameStarted = true; updatePlayerPosition(); }
+function moveLeft(distance = 38) { playerX = Math.max(20, playerX - distance * (boostTimer > 0 ? 1.7 : 1)); trailMovementFrames = 8; gameStarted = true; updatePlayerPosition(); }
+function moveRight(distance = 38) { playerX = Math.min(levels[currentLevel].length * TILE_WIDTH, playerX + distance * (boostTimer > 0 ? 1.7 : 1)); trailMovementFrames = 8; gameStarted = true; updatePlayerPosition(); }
 function playerBox(): Box { return { x: playerX, y: playerY, width: playerWidth, height: playerHeight }; }
 function isInGravityZone() { return levelHazards.some((hazard) => hazard.kind === "gravity" && intersects(playerBox(), hazard)); }
-function isInFlipFieldAtX() {
-    const flipIndexes = levels[currentLevel].flip ?? levels[currentLevel].gravity;
-    return flipIndexes.some((index) => playerX > 140 + index * TILE_WIDTH - 70 && playerX < 140 + index * TILE_WIDTH + 145);
-}
 function moveDown(distance = 36) {
+    const now = performance.now();
+    const doubleDown = now - lastDownPressAt < 300;
+    lastDownPressAt = now;
+    if (inFlippedRoute && flippedRouteKeyCollected && doubleDown && isInGravityZone()) { leaveFlippedRoute(); return; }
     // On the ceiling, Down is the jump input: it dives under the upper-lane
     // obstacles created for the prestige planet.
     if (shipFlipped) { jump(); return; }
@@ -965,14 +1026,14 @@ function moveDown(distance = 36) {
 }
 function jump() {
     if (jumpCount >= 2) return;
-    const wasInFlipZone = isInGravityZone() && isInFlipFieldAtX();
+    const wasInFlipZone = isInGravityZone();
     jumpCount++;
     verticalSpeed = shipFlipped ? Math.abs(jumpPower) : jumpPower;
     if (!shipFlipped && wasInFlipZone && jumpCount === 2) {
         // A planetary flip is earned by the second jump inside the anti-gravity field.
         shipFlipped = true;
         verticalSpeed = jumpPower;
-        statusLabel.textContent = "Planetary flip engaged. Use Down to dive past upper obstacles.";
+        enterFlippedRoute();
     }
     gameStarted = true; updatePlayerPosition();
 }
@@ -981,7 +1042,7 @@ function startGameLoop() {
     if (!gameActive) return;
     animationFrame = requestAnimationFrame(startGameLoop); updateHeldMovement(); previousPlayerY = playerY;
     const inGravity = isInGravityZone();
-    if (shipFlipped && !isInFlipFieldAtX()) shipFlipped = false;
+    if (shipFlipped && !inGravity && !inFlippedRoute) shipFlipped = false;
     playerLabel.classList.toggle("flipped", shipFlipped);
     if (gameStarted) { elapsedMilliseconds = performance.now() - levelStartedAt; timerLabel.textContent = formatTime(elapsedMilliseconds); }
     verticalSpeed += (shipFlipped ? -1 : 1) * (inGravity ? gravity * 1.55 : gravity); playerY += verticalSpeed;
@@ -990,7 +1051,10 @@ function startGameLoop() {
     projectileTimer++; trailTimer++; playerShotTimer = Math.max(0, playerShotTimer - 1); boostTimer = Math.max(0, boostTimer - 1); rapidTimer = Math.max(0, rapidUntil - performance.now()); rapidCannonUntil = rapidCannonUntil > performance.now() ? rapidCannonUntil : 0;
     if (shootingHeld || pressedKeys.has("e")) shoot();
     if (projectileTimer >= (rapidTimer > 0 ? 52 : reducedEffects ? 120 : 90)) { projectileTimer = 0; levelEnemies.forEach(fireProjectile); levelMiniBosses.forEach(fireMiniBossProjectile); if (boss && !boss.defeated) fireBossProjectile(); }
-    if (!reducedEffects && trailTimer >= 1) { trailTimer = 0; createTrail(); }
+    trailMovementFrames = Math.max(0, trailMovementFrames - 1);
+    const moving = trailMovementFrames > 0 || pressedKeys.has("arrowleft") || pressedKeys.has("arrowright") || pressedKeys.has("a") || pressedKeys.has("d");
+    const airborne = Math.abs(verticalSpeed) > .2;
+    if (!reducedEffects && (moving || airborne) && trailTimer >= 1) { trailTimer = 0; createTrail(); }
     updateProjectiles(); updateTrail(); updatePlayerPosition(); updatePowerupHud(); checkCollisions();
 }
 
@@ -1025,7 +1089,8 @@ function createTrail() {
     updateTrail();
 }
 function updateTrail() {
-    const anchor = { x: playerX + (playerWidth - 14) / 2, y: playerY + playerHeight - 2 };
+    // The exhaust always anchors to the bottom of the ship art; inverted flight mirrors it upward.
+    const anchor = { x: playerX + (playerWidth - 14) / 2, y: shipFlipped ? playerY + 2 : playerY + playerHeight - 2 };
     const last = trailPositions[0];
     if (last && anchor.x !== last.x) trailDirection = anchor.x > last.x ? 1 : -1;
     if (!last || last.x !== anchor.x || last.y !== anchor.y) trailPositions.unshift(anchor);
@@ -1033,7 +1098,7 @@ function updateTrail() {
     trailElement.forEach((element, index) => {
         const point = trailPositions[Math.min(index * 2, trailPositions.length - 1)] ?? anchor;
         const tailX = trailDirection > 0 ? Math.min(point.x, anchor.x) : Math.max(point.x, anchor.x);
-        const tailY = Math.max(point.y, anchor.y + index * 2);
+        const tailY = shipFlipped ? Math.min(point.y, anchor.y - index * 2) : Math.max(point.y, anchor.y + index * 2);
         element.style.left = `${index === 0 ? anchor.x : tailX}px`;
         element.style.top = `${index === 0 ? anchor.y : tailY}px`;
     });
@@ -1067,7 +1132,9 @@ function checkCollisions() {
         portals.some((index, portalIndex) => {
             const portalBox = { x: 140 + index * TILE_WIDTH, y: PORTAL_Y, width: PORTAL_SIZE, height: PORTAL_SIZE };
             if (!intersects(playerBox(), portalBox)) return false;
-            const target = portals[portalIndex + 1] ?? index + 5;
+            // Portals are paired, so either end sends the ship to the other end.
+            const pairedIndex = portalIndex % 2 === 0 ? portalIndex + 1 : portalIndex - 1;
+            const target = portals[pairedIndex] ?? index + 5;
             playerX = Math.min(levels[currentLevel].length * TILE_WIDTH - playerWidth, 140 + target * TILE_WIDTH + PORTAL_SIZE + 24);
             portalCooldownUntil = performance.now() + 700;
             statusLabel.textContent = "Portal transit complete. Search this new lane for a secret key.";
@@ -1076,6 +1143,7 @@ function checkCollisions() {
         });
     }
     if (levelKey && !levelKey.collected && intersects({ x: playerX, y: playerY, width: playerWidth, height: playerHeight }, { x: levelKey.x, y: levelKey.y, width: 38, height: 38 })) { levelKey.collected = true; const keyId = levels[currentLevel].secretId ?? "eclipse"; localStorage.setItem(`orbit-key-${keyId}`, "1"); if (keyId === "eclipse") localStorage.setItem("orbit-secret-unlocked", "1"); document.querySelector(".level-key")?.classList.add("collected"); statusLabel.textContent = `${keyId} key claimed. Secret level unlocked.`; }
+    if (inFlippedRoute && !flippedRouteKeyCollected && intersects(playerBox(), { x: 140 + (levels[currentLevel].flippedRoute?.key ?? 19) * TILE_WIDTH, y: 170, width: 38, height: 38 })) { flippedRouteKeyCollected = true; document.querySelector(".flipped-route-key")?.classList.add("collected"); statusLabel.textContent = "Exit key recovered. Double-tap Down in an anti-gravity zone to return."; }
     levelEnemies.forEach((enemy, index) => {
         if (enemy.defeated) return;
         const enemyBox = { x: enemy.x, y: enemy.y, width: 48, height: 48 };
@@ -1089,7 +1157,8 @@ function checkCollisions() {
             statusLabel.textContent = "Sentry disabled. Nice landing.";
             document.querySelectorAll(".enemy")[index]?.classList.add("defeated");
         } else if (touchingEnemy) {
-            showGameOver("You hit a sentry head-on.");
+            if (shieldCharges > 0) { shieldCharges--; playerX = enemy.x - playerWidth - 8; statusLabel.textContent = "Shield absorbed the sentry impact."; }
+            else showGameOver("You hit a sentry head-on.");
         }
     });
     levelMiniBosses.forEach((miniBoss, index) => {
