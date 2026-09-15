@@ -863,8 +863,8 @@ function showWinScreen() {
     if (levels[currentLevel].secretId === "prestige-gate") localStorage.setItem("orbit-level-complete-prestige-gate", "1");
     const screen = document.createElement("main");
         screen.className = "win-screen win-screen-animation";
-    const promoted = tryPrestige();
-    const reward = promoted ? `Prestige ${prestigeLevel} reached. A new ship avatar is ready in settings.` : levels[currentLevel].boss ? "Titan Core skin unlocked. The fleet has a new legend." : levels[currentLevel].secret ? "The Eclipse skin has joined your collection." : `Every asteroid secured. Total fleet claims: ${asteroidsClaimed}.`;
+    const prestigeGateCleared = levels[currentLevel].secretId === "prestige-gate";
+    const reward = prestigeGateCleared ? "Prestige Gate cleared. Return to the main menu to claim your prestige." : levels[currentLevel].boss ? "Titan Core skin unlocked. The fleet has a new legend." : levels[currentLevel].secret ? "The Eclipse skin has joined your collection." : `Every asteroid secured. Total fleet claims: ${asteroidsClaimed}.`;
     screen.innerHTML = `<p class="eyebrow">BEACON REACHED / ${levels[currentLevel].secret ? "SECRET" : `SECTOR 0${currentLevel + 1}`}</p><h1>Claim <em>complete</em></h1><p class="time-result">${formatTime(elapsedMilliseconds)}</p><p class="menu-copy">${reward}</p>`;
     const nextLevel = levels.findIndex((level, index) => index > currentLevel && (level.secret ? isSecretLevelUnlocked(level) : index === 0 || Number(localStorage.getItem(`orbit-level-${index}`) ?? "0") === 1));
     screen.append(createMenuButton(nextLevel >= 0 ? "Next sector" : "Replay sector", () => nextLevel >= 0 ? startGame(nextLevel) : startGame(currentLevel)), createTextButton("Mission select", showLevelMenu), createPageCounter());
@@ -951,19 +951,43 @@ function handleKeyUp(event: KeyboardEvent) { pressedKeys.delete(event.key.toLowe
 function updateHeldMovement() { if (pressedKeys.has("arrowleft") || pressedKeys.has("a")) moveLeft(4); if (pressedKeys.has("arrowright") || pressedKeys.has("d")) moveRight(4); }
 function moveLeft(distance = 38) { playerX = Math.max(20, playerX - distance * (boostTimer > 0 ? 1.7 : 1)); gameStarted = true; updatePlayerPosition(); }
 function moveRight(distance = 38) { playerX = Math.min(levels[currentLevel].length * TILE_WIDTH, playerX + distance * (boostTimer > 0 ? 1.7 : 1)); gameStarted = true; updatePlayerPosition(); }
-function moveDown(distance = 36) { playerY = Math.min(360, playerY + distance); verticalSpeed = 0; gameStarted = true; updatePlayerPosition(); }
-function jump() { if (jumpCount < 2) { verticalSpeed = jumpPower; jumpCount++; gameStarted = true; updatePlayerPosition(); } }
+function playerBox(): Box { return { x: playerX, y: playerY, width: playerWidth, height: playerHeight }; }
+function isInGravityZone() { return levelHazards.some((hazard) => hazard.kind === "gravity" && intersects(playerBox(), hazard)); }
+function isInFlipFieldAtX() {
+    const flipIndexes = levels[currentLevel].flip ?? levels[currentLevel].gravity;
+    return flipIndexes.some((index) => playerX > 140 + index * TILE_WIDTH - 70 && playerX < 140 + index * TILE_WIDTH + 145);
+}
+function moveDown(distance = 36) {
+    // On the ceiling, Down is the jump input: it dives under the upper-lane
+    // obstacles created for the prestige planet.
+    if (shipFlipped) { jump(); return; }
+    playerY = Math.min(FLOOR_Y + 60, playerY + distance); verticalSpeed = 0; gameStarted = true; updatePlayerPosition();
+}
+function jump() {
+    if (jumpCount >= 2) return;
+    const wasInFlipZone = isInGravityZone() && isInFlipFieldAtX();
+    jumpCount++;
+    verticalSpeed = shipFlipped ? Math.abs(jumpPower) : jumpPower;
+    if (!shipFlipped && wasInFlipZone && jumpCount === 2) {
+        // A planetary flip is earned by the second jump inside the anti-gravity field.
+        shipFlipped = true;
+        verticalSpeed = jumpPower;
+        statusLabel.textContent = "Planetary flip engaged. Use Down to dive past upper obstacles.";
+    }
+    gameStarted = true; updatePlayerPosition();
+}
 
 function startGameLoop() {
     if (!gameActive) return;
     animationFrame = requestAnimationFrame(startGameLoop); updateHeldMovement(); previousPlayerY = playerY;
-    const inGravity = levelHazards.some((hazard) => hazard.kind === "gravity" && intersects({ x: playerX, y: playerY, width: playerWidth, height: playerHeight }, hazard));
-    shipFlipped = inGravity && (levels[currentLevel].flip ?? levels[currentLevel].gravity).some((index) => playerX > 140 + index * TILE_WIDTH - 70 && playerX < 140 + index * TILE_WIDTH + 145);
+    const inGravity = isInGravityZone();
+    if (shipFlipped && !isInFlipFieldAtX()) shipFlipped = false;
     playerLabel.classList.toggle("flipped", shipFlipped);
     if (gameStarted) { elapsedMilliseconds = performance.now() - levelStartedAt; timerLabel.textContent = formatTime(elapsedMilliseconds); }
-    verticalSpeed += inGravity ? gravity * 1.55 : gravity; playerY += verticalSpeed;
-    if (playerY >= 300) { playerY = 300; verticalSpeed = 0; jumpCount = 0; }
-    projectileTimer++; trailTimer++; playerShotTimer = Math.max(0, playerShotTimer - 1); boostTimer = Math.max(0, boostTimer - 1); rapidTimer = Math.max(0, rapidUntil - performance.now()); if (cannonTimer !== Number.POSITIVE_INFINITY && rapidUntil > 0) cannonTimer = Math.max(0, rapidTimer);
+    verticalSpeed += (shipFlipped ? -1 : 1) * (inGravity ? gravity * 1.55 : gravity); playerY += verticalSpeed;
+    if (!shipFlipped && playerY >= FLOOR_Y) { playerY = FLOOR_Y; verticalSpeed = 0; jumpCount = 0; }
+    if (shipFlipped && playerY <= CEILING_Y) { playerY = CEILING_Y; verticalSpeed = 0; jumpCount = 0; }
+    projectileTimer++; trailTimer++; playerShotTimer = Math.max(0, playerShotTimer - 1); boostTimer = Math.max(0, boostTimer - 1); rapidTimer = Math.max(0, rapidUntil - performance.now()); rapidCannonUntil = Math.max(0, rapidCannonUntil);
     if (shootingHeld || pressedKeys.has("e")) shoot();
     if (projectileTimer >= (rapidTimer > 0 ? 52 : reducedEffects ? 120 : 90)) { projectileTimer = 0; levelEnemies.forEach(fireProjectile); levelMiniBosses.forEach(fireMiniBossProjectile); if (boss && !boss.defeated) fireBossProjectile(); }
     if (!reducedEffects && trailTimer >= 1) { trailTimer = 0; createTrail(); }
@@ -972,7 +996,8 @@ function startGameLoop() {
 
 function updatePlayerPosition() { playerLabel.style.transform = `translate(${playerX}px, ${playerY}px) rotate(${shipFlipped ? 180 : 0}deg)`; world.style.transform = `translateX(${-Math.max(0, playerX - 180)}px)`; levelLabel.textContent = `SECTOR 0${currentLevel + 1}`; }
 function shoot() {
-    if (!gameActive || cannonTimer <= 0) { if (gameActive) statusLabel.textContent = "Cannon offline. Find the cannon power-up."; return; }
+    const rapidCannonReady = rapidCannonUntil > performance.now();
+    if (!gameActive || (cannonTimer <= 0 && !rapidCannonReady)) { if (gameActive) statusLabel.textContent = "Cannon offline. Find the cannon power-up."; return; }
     if (playerShotTimer > 0) return;
     playerShotTimer = rapidUntil > performance.now() ? 8 : 20;
     const element = document.createElement("div"); element.className = "player-projectile"; world.append(element);
