@@ -39,25 +39,25 @@ const levels: Level[] = [
     { name: "Redline Pass", briefing: "The rocks are tighter here. Watch the sentry fire.", length: 15, asteroids: [2, 5, 8, 12], walls: [4, 7], enemies: [9], spikes: [6], gravity: [] },
     { name: "Gravity Well", briefing: "Gravity wells pull you down. Use a double jump to escape.", length: 17, asteroids: [2, 5, 9, 13, 15], walls: [4, 8, 12], enemies: [7, 14], spikes: [6, 11], gravity: [10] },
     { name: "Shatter Belt", briefing: "Spikes, sentries, and a long drift. Keep your hull steady.", length: 20, asteroids: [2, 5, 8, 11, 15, 18], walls: [4, 7, 10, 14, 17], enemies: [6, 13, 16], spikes: [5, 12, 16], gravity: [9, 18] },
-    { name: "Last Light", briefing: "The final claim. Bring seven asteroids home through the storm.", length: 23, asteroids: [2, 5, 8, 11, 14, 17, 20], walls: [4, 7, 10, 13, 16, 19], enemies: [6, 12, 15, 21], spikes: [5, 9, 14, 18], gravity: [8, 11, 17, 20] },
+    { name: "Last Light", briefing: "The final claim. Bring seven asteroids home through the storm.", length: 23, asteroids: [2, 5, 8, 11, 14, 17, 20], walls: [4, 7, 10, 13, 16, 19], enemies: [6, 12, 15, 21], spikes: [5, 9, 14, 18], gravity: [8, 11, 17, 20], secretPortals: [{ index: 3, secretId: "eclipse" }] },
     { name: "Ion Cathedral", briefing: "The cathedral hums with static. Break through its sentry choir.", length: 24, asteroids: [2, 5, 8, 12, 15, 19, 22], walls: [4, 7, 11, 14, 18, 21], enemies: [6, 13, 20], spikes: [5, 10, 16, 22], gravity: [9, 17], powerups: [{ index: 3, kind: "shield" }, { index: 16, kind: "cannon" }], miniBosses: [11] },
     { name: "Neon Graveyard", briefing: "Old ships drift here. Their guardians do not want you leaving.", length: 27, asteroids: [2, 5, 9, 12, 16, 20, 24], walls: [4, 8, 11, 15, 19, 23], enemies: [6, 14, 21], spikes: [5, 10, 17, 22], gravity: [7, 18], powerups: [{ index: 7, kind: "boost" }, { index: 18, kind: "shield" }, { index: 23, kind: "cannon" }], miniBosses: [9, 20] },
-    { name: "Crystal Run", briefing: "The crystal storm bends every shot. Find the portal route; an Eclipse key signal is hidden above its far end.", length: 30, asteroids: [3, 6, 10, 13, 17, 21, 25, 28], walls: [5, 9, 12, 16, 20, 24, 27], enemies: [7, 15, 23], spikes: [6, 11, 18, 26], gravity: [8, 14, 22], portals: [7, 25], secretKey: { id: "eclipse", index: 25, y: 72, requiresPortal: true }, powerups: [{ index: 5, kind: "rapid" }, { index: 14, kind: "boost" }, { index: 25, kind: "shield" }], miniBosses: [10, 22] },
+    { name: "Crystal Run", briefing: "The crystal storm bends every shot. Find the portal route; an Eclipse key signal is hidden above its far end.", length: 30, asteroids: [3, 6, 10, 13, 17, 21, 25, 28], walls: [5, 9, 12, 16, 20, 24, 27], enemies: [7, 15, 23], spikes: [6, 11, 18, 26], gravity: [8, 14, 22], portals: [7, 25], secretPortals: [{ index: 2, secretId: "nebula" }], secretKey: { id: "eclipse", index: 25, y: 72, requiresPortal: true }, powerups: [{ index: 5, kind: "rapid" }, { index: 14, kind: "boost" }, { index: 25, kind: "shield" }], miniBosses: [10, 22] },
     { name: "Titan's Wake", briefing: "The titan is waiting. Every asteroid you claim tears through its armor.", length: 33, asteroids: [3, 6, 9, 12, 15, 18, 21, 24, 28, 30], walls: [5, 8, 11, 14, 17, 20, 23, 26, 29], enemies: [7, 16, 25], spikes: [6, 13, 19, 27], gravity: [10, 18, 24], powerups: [{ index: 4, kind: "shield" }, { index: 15, kind: "rapid" }, { index: 25, kind: "boost" }], miniBosses: [12, 24], boss: true },
     { name: "Solar Foundry", briefing: "The foundry burns hot. Ride the safe gaps between its moving sentries.", length: 28, asteroids: [2, 6, 10, 14, 18, 22, 26], walls: [4, 8, 12, 16, 20, 24], enemies: [7, 15, 23], spikes: [5, 11, 17, 25], gravity: [9, 19], powerups: [{ index: 3, kind: "shield" }, { index: 13, kind: "boost" }, { index: 21, kind: "cannon" }], miniBosses: [14], boss: true },
     { name: "Moonlit Ruins", briefing: "The ruins hide a Nebula key past an unmarked portal. Reach the high ledge after the transit.", length: 31, asteroids: [3, 7, 11, 15, 19, 23, 27], walls: [5, 9, 13, 17, 21, 25], enemies: [6, 14, 22, 28], spikes: [8, 12, 20, 26], gravity: [10, 18, 24], portals: [8, 27], secretKey: { id: "nebula", index: 27, y: 64, requiresPortal: true }, powerups: [{ index: 6, kind: "cannon" }, { index: 16, kind: "shield" }, { index: 26, kind: "boost" }], miniBosses: [11, 24] },
-    { name: "Event Horizon", briefing: "One last crossing before the vault. Nothing escapes the horizon unchanged.", length: 36, asteroids: [3, 7, 11, 15, 19, 23, 27, 31, 34], walls: [5, 9, 13, 17, 21, 25, 29, 33], enemies: [6, 14, 22, 30], spikes: [8, 12, 20, 28, 34], gravity: [10, 18, 26, 32], powerups: [{ index: 4, kind: "boost" }, { index: 16, kind: "shield" }, { index: 28, kind: "rapid" }], miniBosses: [12, 26] },
-    { name: "Eclipse Vault", briefing: "A hidden route beyond the fourth asteroid. Find the vault and claim its impossible light.", length: 19, asteroids: [2, 4, 7, 10, 13, 16], walls: [3, 6, 9, 12, 15], enemies: [5, 11, 17], spikes: [4, 8, 14], gravity: [7, 16], powerups: [{ index: 6, kind: "shield" }, { index: 14, kind: "boost" }], specialAsteroids: [2, 4, 7, 10, 13, 16], secret: true, secretId: "eclipse" },
+    { name: "Event Horizon", briefing: "One last crossing before the vault. Nothing escapes the horizon unchanged.", length: 36, asteroids: [3, 7, 11, 15, 19, 23, 27, 31, 34], walls: [5, 9, 13, 17, 21, 25, 29, 33], enemies: [6, 14, 22, 30], spikes: [8, 12, 20, 28, 34], gravity: [10, 18, 26, 32], secretPortals: [{ index: 4, secretId: "eclipse" }], powerups: [{ index: 4, kind: "boost" }, { index: 16, kind: "shield" }, { index: 28, kind: "rapid" }], miniBosses: [12, 26] },
+    { name: "Eclipse Vault", briefing: "A hidden route beyond the fourth asteroid. Find the vault and claim its impossible light.", length: 19, asteroids: [2, 4, 7, 10, 13, 16], walls: [3, 6, 9, 12, 15], enemies: [5, 11, 17], spikes: [4, 8, 14], gravity: [7, 16], powerups: [{ index: 6, kind: "shield" }, { index: 14, kind: "boost" }], specialAsteroids: [2, 4, 7, 10, 13, 16], secret: true, secretId: "eclipse", secretPortals: [{ index: 2, secretId: "eclipse" }] },
     { name: "Comet Nursery", briefing: "Young comets cut across the route. Claim their bright cores and keep your aim ready.", length: 26, asteroids: [2, 6, 10, 14, 18, 22], walls: [4, 8, 12, 16, 20], enemies: [7, 13, 19, 24], spikes: [5, 11, 17, 23], gravity: [9, 21], powerups: [{ index: 3, kind: "cannon" }, { index: 15, kind: "shield" }], miniBosses: [18] },
     { name: "Prism Citadel", briefing: "The citadel's walls fold light around its guardians. Break the second titan before the beacon.", length: 32, asteroids: [3, 7, 11, 15, 19, 23, 27, 30], walls: [5, 9, 13, 17, 21, 25, 29], enemies: [6, 14, 22, 28], spikes: [8, 12, 20, 26], gravity: [10, 18, 24], powerups: [{ index: 4, kind: "shield" }, { index: 16, kind: "cannon" }, { index: 26, kind: "boost" }], miniBosses: [12, 24], boss: true },
     { name: "Afterglow Station", briefing: "A final station waits beyond the old lanes. Its archive key is hidden over the destination portal.", length: 35, asteroids: [3, 7, 11, 15, 19, 23, 27, 31, 33], walls: [5, 9, 13, 17, 21, 25, 29], enemies: [6, 14, 22, 30], spikes: [8, 12, 20, 28, 33], gravity: [10, 18, 26, 32], portals: [9, 31], secretKey: { id: "archive", index: 31, y: 58, requiresPortal: true }, powerups: [{ index: 4, kind: "cannon" }, { index: 16, kind: "shield" }, { index: 28, kind: "boost" }], miniBosses: [12, 26], boss: true },
-    { name: "Nebula Hollow", briefing: "A moonlit key opens this silent passage. Drift through the dark and find the hidden beacon.", length: 25, asteroids: [3, 7, 11, 15, 19, 22], walls: [5, 9, 13, 17, 21], enemies: [6, 14, 20], spikes: [8, 12, 18], gravity: [10, 16, 22], powerups: [{ index: 4, kind: "shield" }, { index: 14, kind: "cannon" }], specialAsteroids: [3, 7, 11, 15, 19, 22], secret: true, secretId: "nebula" },
-    { name: "Black Hole Archive", briefing: "The last key points into the archive. Survive the spiral and face the keeper.", length: 30, asteroids: [3, 7, 11, 15, 19, 23, 27], walls: [5, 9, 13, 17, 21, 25], enemies: [6, 14, 22, 28], spikes: [8, 12, 20, 26], gravity: [10, 18, 24], powerups: [{ index: 4, kind: "cannon" }, { index: 16, kind: "shield" }, { index: 25, kind: "boost" }], miniBosses: [12, 24], boss: true, secret: true, secretId: "archive", specialAsteroids: [3, 7, 11, 15, 19, 23, 27] },
-    { name: "Prestige Gate", briefing: "The gatekeeper tests every route. Defeat it before claiming your next prestige.", length: 28, asteroids: [3, 7, 11, 15, 19, 23], walls: [5, 9, 13, 17, 21], enemies: [6, 14, 22], spikes: [8, 12, 20], gravity: [10, 18], powerups: [{ index: 4, kind: "shield" }, { index: 16, kind: "cannon" }], miniBosses: [12], boss: true, secret: true, secretId: "prestige-gate" },
+    { name: "Nebula Hollow", briefing: "A moonlit key opens this silent passage. Drift through the dark and find the hidden beacon.", length: 25, asteroids: [3, 7, 11, 15, 19, 22], walls: [5, 9, 13, 17, 21], enemies: [6, 14, 20], spikes: [8, 12, 18], gravity: [10, 16, 22], powerups: [{ index: 4, kind: "shield" }, { index: 14, kind: "cannon" }], specialAsteroids: [3, 7, 11, 15, 19, 22], secret: true, secretId: "nebula", secretPortals: [{ index: 2, secretId: "nebula" }] },
+    { name: "Black Hole Archive", briefing: "The last key points into the archive. Survive the spiral and face the keeper.", length: 30, asteroids: [3, 7, 11, 15, 19, 23, 27], walls: [5, 9, 13, 17, 21, 25], enemies: [6, 14, 22, 28], spikes: [8, 12, 20, 26], gravity: [10, 18, 24], powerups: [{ index: 4, kind: "cannon" }, { index: 16, kind: "shield" }, { index: 25, kind: "boost" }], miniBosses: [12, 24], boss: true, secret: true, secretId: "archive", specialAsteroids: [3, 7, 11, 15, 19, 23, 27], secretPortals: [{ index: 2, secretId: "archive" }] },
+    { name: "Prestige Gate", briefing: "The gatekeeper tests every route. Defeat it before claiming your next prestige.", length: 28, asteroids: [3, 7, 11, 15, 19, 23], walls: [5, 9, 13, 17, 21], enemies: [6, 14, 22], spikes: [8, 12, 20], gravity: [10, 18], powerups: [{ index: 4, kind: "shield" }, { index: 16, kind: "cannon" }], miniBosses: [12], boss: true, secret: true, secretId: "prestige-gate", secretPortals: [{ index: 2, secretId: "prestige-gate" }] },
     // Prestige-exclusive secret levels with prestige-only keys
-    { name: "Stellar Sanctum", briefing: "A sanctuary hidden in the ringed planet's deep orbit. Only the worthy can claim its stellar core.", length: 28, asteroids: [3, 7, 11, 15, 19, 23, 26], walls: [5, 9, 13, 17, 21], enemies: [6, 14, 22], spikes: [8, 12, 20, 25], gravity: [10, 18], powerups: [{ index: 5, kind: "shield" }, { index: 17, kind: "cannon" }], secretId: "stellar-sanctum", specialAsteroids: [3, 7, 11, 15, 19, 23, 26], secret: true, prestige: true, miniBosses: [14] },
-    { name: "Quantum Depths", briefing: "Reality bends in the quantum realm. Claim the fragments before the tunnel collapses.", length: 32, asteroids: [3, 8, 12, 16, 20, 24, 28, 31], walls: [5, 10, 14, 18, 22, 26, 30], enemies: [7, 17, 25], spikes: [6, 13, 21, 29], gravity: [11, 19, 27], powerups: [{ index: 6, kind: "rapid" }, { index: 18, kind: "boost" }, { index: 28, kind: "shield" }], secretId: "quantum-depths", specialAsteroids: [3, 8, 12, 16, 20, 24, 28, 31], secret: true, prestige: true, miniBosses: [13, 26] },
-    { name: "Infinity Spiral", briefing: "The spiral stretches beyond infinity. Navigate the impossible geometry and find the Infinity Key.", length: 35, asteroids: [4, 9, 13, 17, 21, 25, 29, 32, 34], walls: [6, 10, 14, 18, 22, 26, 30, 33], enemies: [8, 18, 28], spikes: [7, 14, 22, 30, 34], gravity: [12, 20, 28], powerups: [{ index: 7, kind: "cannon" }, { index: 19, kind: "shield" }, { index: 30, kind: "boost" }], secretId: "infinity-spiral", specialAsteroids: [4, 9, 13, 17, 21, 25, 29, 32, 34], secret: true, prestige: true, miniBosses: [15, 28], boss: true },
+    { name: "Stellar Sanctum", briefing: "A sanctuary hidden in the ringed planet's deep orbit. Only the worthy can claim its stellar core.", length: 28, asteroids: [3, 7, 11, 15, 19, 23, 26], walls: [5, 9, 13, 17, 21], enemies: [6, 14, 22], spikes: [8, 12, 20, 25], gravity: [10, 18], powerups: [{ index: 5, kind: "shield" }, { index: 17, kind: "cannon" }], secretId: "stellar-sanctum", specialAsteroids: [3, 7, 11, 15, 19, 23, 26], secret: true, prestige: true, miniBosses: [14], secretPortals: [{ index: 2, secretId: "stellar-sanctum" }] },
+    { name: "Quantum Depths", briefing: "Reality bends in the quantum realm. Claim the fragments before the tunnel collapses.", length: 32, asteroids: [3, 8, 12, 16, 20, 24, 28, 31], walls: [5, 10, 14, 18, 22, 26, 30], enemies: [7, 17, 25], spikes: [6, 13, 21, 29], gravity: [11, 19, 27], powerups: [{ index: 6, kind: "rapid" }, { index: 18, kind: "boost" }, { index: 28, kind: "shield" }], secretId: "quantum-depths", specialAsteroids: [3, 8, 12, 16, 20, 24, 28, 31], secret: true, prestige: true, miniBosses: [13, 26], secretPortals: [{ index: 2, secretId: "quantum-depths" }] },
+    { name: "Infinity Spiral", briefing: "The spiral stretches beyond infinity. Navigate the impossible geometry and find the Infinity Key.", length: 35, asteroids: [4, 9, 13, 17, 21, 25, 29, 32, 34], walls: [6, 10, 14, 18, 22, 26, 30, 33], enemies: [8, 18, 28], spikes: [7, 14, 22, 30, 34], gravity: [12, 20, 28], powerups: [{ index: 7, kind: "cannon" }, { index: 19, kind: "shield" }, { index: 30, kind: "boost" }], secretId: "infinity-spiral", specialAsteroids: [4, 9, 13, 17, 21, 25, 29, 32, 34], secret: true, prestige: true, miniBosses: [15, 28], boss: true, secretPortals: [{ index: 2, secretId: "infinity-spiral" }] },
 ];
 
 const skins: { name: string; color: string; shape: "classic" | "dart" | "ring" | "blade"; required: number; image?: string; boss?: boolean; secret?: boolean; prestige?: number; golden?: boolean }[] = [
@@ -226,7 +226,7 @@ function loadCustomLevels() {
     for (let index = 0; index < 20; index++) {
         const prestigeSecretIds = ["stellar-sanctum", "quantum-depths", "infinity-spiral"];
         const secretKey = prestigeSecretIds[index] ? { id: prestigeSecretIds[index], index: 29, y: 66, requiresPortal: true } : undefined;
-        levels.push({ name: prestigeRouteNames[index], briefing: secretKey ? "A prestige key is hidden above the far portal. Flip the planet only inside an anti-gravity zone." : "A longer route around the ringed planet. Planetary flip fields reveal the upper lane.", length: 38 + index, asteroids: [3, 8, 13, 18, 23, 28, 33], walls: [5, 10, 15, 20, 25, 30], enemies: [7, 17, 27, 35], spikes: [6, 14, 24, 32], gravity: [11, 21, 31], portals: [16, 29], flip: [11, 31], secretKey, boss: index === 19, prestige: true });
+        levels.push({ name: prestigeRouteNames[index], briefing: secretKey ? "A prestige key is hidden above the far portal. Flip the planet only inside an anti-gravity zone." : "A longer route around the ringed planet. Planetary flip fields reveal the upper lane.", length: 38 + index, asteroids: [3, 8, 13, 18, 23, 28, 33], walls: [5, 10, 15, 20, 25, 30], enemies: [7, 17, 27, 35], spikes: [6, 14, 24, 32], gravity: [11, 21, 31], portals: [16, 29], flip: [11, 31], secretKey, boss: index === 19, prestige: true, secretPortals: index === 0 ? [{ index: 5, secretId: "stellar-sanctum" }] : index === 5 ? [{ index: 3, secretId: "quantum-depths" }] : index === 10 ? [{ index: 4, secretId: "infinity-spiral" }] : undefined });
     }
 }
 
@@ -622,14 +622,11 @@ function showShop() {
     });
     const wheel = document.createElement("article");
     wheel.className = "asteroid-wheel";
-    const isPrestigeMode = activePlanet === "prestige";
-    wheel.innerHTML = isPrestigeMode
-        ? `<div class="wheel-ring"><span>✦</span></div><b>PRESTIGE GAMBLE</b><small>1 special asteroid / exclusive skins, avatars & trails</small>`
-        : `<div class="wheel-ring"><span>✦</span></div><b>ASTEROID ROLL</b><small>1 special asteroid / up to 100 normal asteroids</small>`;
+    wheel.innerHTML = `<div class="wheel-ring"><span>✦</span></div><b>ASTEROID ROLL</b><small>1 special asteroid / up to 100 normal asteroids / prestige cosmetics on Epic+ tiers</small>`;
     const roll = document.createElement("button");
     roll.className = "text-button shop-buy";
     roll.type = "button";
-    roll.textContent = isPrestigeMode ? "Spin for prestige rewards / 1 special" : "Spin left to right / 1 special";
+    roll.textContent = "Spin left to right / 1 special";
     roll.disabled = specialAsteroids < 1 || spinInProgress;
     roll.addEventListener("click", () => {
         if (specialAsteroids < 1 || spinInProgress) return;
@@ -639,7 +636,7 @@ function showShop() {
         wheel.classList.add("spinning");
         roll.disabled = true;
         const rarity = rollSpecialAsteroidRarity();
-        const resultCopy = isPrestigeMode ? getPrestigeSpinReward(rarity) : getNormalSpinReward(rarity);
+        const resultCopy = getNormalSpinReward(rarity);
         window.setTimeout(() => {
             spinInProgress = false;
             if (!document.body.contains(menu)) return;
@@ -648,7 +645,7 @@ function showShop() {
             result.className = "spin-result";
             result.setAttribute("role", "dialog");
             result.setAttribute("aria-modal", "true");
-            result.innerHTML = `<div class="spin-result-card"><p class="eyebrow">${isPrestigeMode ? "PRESTIGE GAMBLE COMPLETE" : "ROLL COMPLETE"}</p>${createRarityBadge(rarity)}<h2>${resultCopy.title}</h2><p>${resultCopy.description}</p></div>`;
+            result.innerHTML = `<div class="spin-result-card"><p class="eyebrow">ROLL COMPLETE</p>${createRarityBadge(rarity)}<h2>${resultCopy.title}</h2><p>${resultCopy.description}</p></div>`;
             const close = document.createElement("button");
             close.className = "menu-button";
             close.type = "button";
@@ -701,26 +698,27 @@ function getNormalSpinReward(rarity: Rarity) {
         localStorage.setItem("orbit-trail", String(selectedTrail));
         localStorage.setItem("orbit-jackpot-avatar", "1");
     }
+    if (rarity === "Epic" || rarity === "Legendary") {
+        const allCosmetics = [
+            ...skins.map((item, index) => ({ group: "skin" as const, index, item })),
+            ...trails.map((item, index) => ({ group: "trail" as const, index, item })),
+            ...avatars.map((item, index) => ({ group: "avatar" as const, index, item })),
+        ];
+        const matching = allCosmetics.filter((c) => getCosmeticRarity(c.item) === rarity);
+        const unclaimed = matching.filter((c) => !isSpinCosmeticUnlocked(c.group, c.index));
+        const pool = unclaimed.length ? unclaimed : matching.length ? matching : allCosmetics;
+        if (pool.length) {
+            const chosen = pool[Math.floor(Math.random() * pool.length)];
+            unlockSpinCosmetic(chosen.group, chosen.index);
+            if (chosen.group === "skin") { selectedSkin = chosen.index; localStorage.setItem("orbit-skin", String(selectedSkin)); }
+            if (chosen.group === "trail") { selectedTrail = chosen.index; localStorage.setItem("orbit-trail", String(selectedTrail)); }
+            if (chosen.group === "avatar") { selectedAvatar = chosen.index; localStorage.setItem("orbit-avatar", String(selectedAvatar)); }
+        }
+    }
     return {
         title: `You got <em>${reward} asteroids</em>`,
         description: rarity === "Legendary" ? "Jackpot Spark and Jackpot Crown were added to your collection." : `${rarity} asteroid cache secured.`,
     };
-}
-
-function getPrestigeSpinReward(rarity: Rarity) {
-    const rewards: { group: CosmeticGroup; index: number; item: { name: string; required: number; secret?: boolean; boss?: boolean; prestige?: number; golden?: boolean; jackpot?: boolean } }[] = [
-        ...skins.map((item, index) => ({ group: "skin" as const, index, item })),
-        ...trails.map((item, index) => ({ group: "trail" as const, index, item })),
-        ...avatars.map((item, index) => ({ group: "avatar" as const, index, item })),
-    ];
-    const matching = rewards.filter((reward) => getCosmeticRarity(reward.item) === rarity);
-    const unclaimed = matching.filter((reward) => !isSpinCosmeticUnlocked(reward.group, reward.index));
-    const reward = (unclaimed.length ? unclaimed : matching.length ? matching : rewards)[Math.floor(Math.random() * (unclaimed.length || matching.length || rewards.length))];
-    unlockSpinCosmetic(reward.group, reward.index);
-    if (reward.group === "skin") { selectedSkin = reward.index; localStorage.setItem("orbit-skin", String(selectedSkin)); }
-    if (reward.group === "trail") { selectedTrail = reward.index; localStorage.setItem("orbit-trail", String(selectedTrail)); }
-    if (reward.group === "avatar") { selectedAvatar = reward.index; localStorage.setItem("orbit-avatar", String(selectedAvatar)); }
-    return { title: `${reward.item.name} <em>unlocked</em>`, description: `${rarity} ${reward.group} added to your collection.` };
 }
 
 function showDropRates() {
@@ -736,31 +734,21 @@ function showDropRates() {
     rarityOrder.forEach((rarity) => {
         const item = document.createElement("article");
         item.className = `rarity-odds-card rarity-${rarity.toLowerCase()}`;
-        const rewardText = activePlanet === "prestige" 
-            ? `${SPECIAL_ASTEROID_ASTEROID_REWARDS[rarity]} normal asteroids on the ringed planet`
-            : `${SPECIAL_ASTEROID_ASTEROID_REWARDS[rarity]} normal asteroids on the blue planet`;
+        const rewardText = `${SPECIAL_ASTEROID_ASTEROID_REWARDS[rarity]} normal asteroids`;
         item.innerHTML = `${createRarityBadge(rarity)}<strong>${SPECIAL_ASTEROID_ODDS[rarity]}%</strong><small>${rewardText}</small>`;
         odds.append(item);
     });
     
-    // Show prestige spin asteroid range
-    if (activePlanet === "prestige") {
-        const prestigeInfo = document.createElement("section");
-        prestigeInfo.className = "prestige-spin-info";
-        prestigeInfo.innerHTML = `<h2>Prestige Gamble Rewards</h2><p>Spin for exclusive prestige cosmetics (skins, trails, avatars) OR <strong>50-1000 normal asteroids</strong> per spin.</p>`;
-        odds.append(prestigeInfo);
-    }
-    
     const catalog = document.createElement("section");
     catalog.className = "rarity-catalog";
     const collections: { title: string; items: { name: string; required: number; secret?: boolean; boss?: boolean; prestige?: number; golden?: boolean; jackpot?: boolean }[] }[] = [
-        { title: "Skins", items: activePlanet === "prestige" ? skins.filter(s => s.prestige) : skins.filter(s => !s.prestige) },
-        { title: "Trails", items: activePlanet === "prestige" ? trails.filter(t => t.prestige) : trails.filter(t => !t.prestige) },
-        { title: "Avatars", items: activePlanet === "prestige" ? avatars.filter(a => a.prestige) : avatars.filter(a => !a.prestige) },
+        { title: "Skins", items: skins },
+        { title: "Trails", items: trails },
+        { title: "Avatars", items: avatars },
     ];
     collections.forEach((collection) => {
         const group = document.createElement("article");
-        group.innerHTML = `<h2>${collection.title} (${activePlanet === "prestige" ? "Prestige" : "Normal"})</h2><div>${collection.items.map((item) => `<span>${item.name}${createRarityBadge(getCosmeticRarity(item))}</span>`).join("")}</div>`;
+        group.innerHTML = `<h2>${collection.title}</h2><div>${collection.items.map((item) => `<span>${item.name}${createRarityBadge(getCosmeticRarity(item))}</span>`).join("")}</div>`;
         catalog.append(group);
     });
     menu.append(odds, catalog, createTextButton("Back to main menu", showMenu), createPageCounter());
@@ -1124,6 +1112,15 @@ function updateSecretBossRoom() {
     const playerBox = { x: playerX, y: playerY, width: playerWidth, height: playerHeight };
     const bossBox = { x: secretBoss.x, y: secretBoss.y, width: 128, height: 150 };
     if (intersects(playerBox, bossBox)) {
+        const landedOnHead = verticalSpeed >= 0 && previousPlayerY + playerHeight <= bossBox.y + 18;
+        if (landedOnHead) {
+            damageSecretBoss();
+            playerY = bossBox.y - playerHeight;
+            verticalSpeed = jumpPower * 0.65;
+            jumpCount = 1;
+            statusLabel.textContent = "Void Warden crushed. Ground pound landed!";
+            return;
+        }
         if (shieldCharges > 0) { 
             shieldCharges--; 
             playerX = secretBoss.x - playerWidth - 8; 
@@ -1342,15 +1339,15 @@ function createWorldObjects() {
 createLevelKeyObject();
     if (inFlippedRoute && !flippedRouteKeyCollected) { const routeKey = document.createElement("div"); routeKey.className = "level-key flipped-route-key"; routeKey.textContent = "⚿"; routeKey.style.left = `${140 + (levels[currentLevel].flippedRoute?.key ?? 19) * TILE_WIDTH}px`; routeKey.style.top = "170px"; routeKey.setAttribute("aria-label", "Flipped planet exit key"); world.append(routeKey); }
     
-    // Secret portals - one per secret level, placed in hard-to-reach locations
+    // Secret portals - one per secret level, placed in hard-to-reach/obscured locations (y=80, reveal radius 50px)
     const secretPortals = levels[currentLevel].secretPortals ?? [];
     secretPortals.forEach((portal, portalIndex) => { 
         const element = document.createElement("div"); 
         element.className = "secret-portal hidden"; 
         element.textContent = "";
-        // Place secret portals higher up (harder to reach) - at y=100 instead of 175
-        element.style.left = `${140 + portal.index * TILE_WIDTH}px`; 
-        element.style.top = "100px"; 
+// Place secret portals higher up - at y=80 for obscured locations
+        element.style.left = `${140 + portal.index * TILE_WIDTH}px`;
+        element.style.top = "80px";
         element.setAttribute("aria-label", `Secret portal to ${portal.secretId}`); 
         element.dataset.portalIndex = portalIndex.toString();
         world.append(element); 
@@ -1754,7 +1751,7 @@ if (portalTravelInProgress) return;
             playerY = enemy.y - playerHeight;
             verticalSpeed = jumpPower * 0.58;
             jumpCount = 1;
-            statusLabel.textContent = "Sentry disabled. Nice landing.";
+            statusLabel.textContent = inFlippedRoute ? "Dark sentry crushed. Ground pound dominates." : "Sentry disabled. Nice landing.";
             document.querySelectorAll(".enemy")[index]?.classList.add("defeated");
         } else if (touchingEnemy) {
             if (shieldCharges > 0) { shieldCharges--; playerX = enemy.x - playerWidth - 8; statusLabel.textContent = "Shield absorbed the sentry impact."; }
@@ -1767,18 +1764,18 @@ if (portalTravelInProgress) return;
         const touching = intersects({ x: playerX, y: playerY, width: playerWidth, height: playerHeight }, miniBox);
         const stomped = touching && verticalSpeed >= 0 && previousPlayerY + playerHeight <= miniBoss.y + 18;
         if (stomped) {
-            miniBoss.health--;
+            miniBoss.health -= inFlippedRoute ? 2 : 1;
             playerY = miniBoss.y - playerHeight;
-            verticalSpeed = jumpPower * .62;
+            verticalSpeed = jumpPower * (inFlippedRoute ? 0.75 : .62);
             jumpCount = 1;
             document.querySelectorAll(".mini-boss")[index]?.classList.add("hit");
             window.setTimeout(() => document.querySelectorAll(".mini-boss")[index]?.classList.remove("hit"), 180);
             if (miniBoss.health <= 0) {
                 miniBoss.defeated = true;
                 document.querySelectorAll(".mini-boss")[index]?.classList.add("defeated");
-                statusLabel.textContent = "Dark Knight shattered. The route is clear.";
+                statusLabel.textContent = inFlippedRoute ? "Dark Knight crushed. Ground pound supremacy!" : "Dark Knight shattered. The route is clear.";
             } else {
-                statusLabel.textContent = `Dark Knight damaged. ${miniBoss.health} hit remaining.`;
+                statusLabel.textContent = inFlippedRoute ? `Dark Knight staggered. ${miniBoss.health} hit remaining.` : `Dark Knight damaged. ${miniBoss.health} hit remaining.`;
             }
         } else if (touching) {
             if (shieldCharges > 0) { shieldCharges--; playerX = miniBoss.x - playerWidth - 8; statusLabel.textContent = "Shield absorbed the mini-boss impact."; }
