@@ -169,9 +169,12 @@ body #game-world.flipped-route { background: linear-gradient(180deg, #5b3285 0%,
 .powerup.shield { color: #101b2b; background: #6ecbff; border-color: #d9f5ff; box-shadow: 0 0 24px #6ecbff; }
 .powerup.rapid { color: #101b2b; background: #f6c46e; border-color: #fff3bd; box-shadow: 0 0 24px #f6c46e; }
 .powerup.cannon { color: #101b2b; background: #ed7657; border-color: #fff3bd; box-shadow: 0 0 24px #ed7657; }
+.powerup.boost { color: #101b2b; background: #a7e0bc; border-color: #d9f5ff; box-shadow: 0 0 24px #a7e0bc; }
+.powerup.star { color: #101b2b; background: conic-gradient(#ed7657, #f6c46e, #6ecbff, #b991ff, #ed7657); border-color: #fff; box-shadow: 0 0 28px #f58bff; }
 .powerup.collected { opacity: 0; transform: scale(2); transition: .25s; }
 .level-key { position: absolute; z-index: 5; display: grid; place-items: center; width: 38px; height: 38px; border: 2px solid #f6c46e; border-radius: 50%; color: #101b2b; background: #f6c46e; box-shadow: 0 0 26px #f6c46e; font-size: 1.4rem; animation: key-pulse 1.1s ease-in-out infinite; }
 .level-key.collected { opacity: 0; transform: scale(2); transition: .25s; }
+.player.ground-pound, .portal-room-player.ground-pound { animation: ground-pound .18s ease-out; }
 .trail-particle { position: absolute; z-index: 2; width: 14px; height: 25px; border-radius: 50% 50% 45% 45%; background: var(--trail-color, #ed7657); box-shadow: 0 0 12px var(--trail-color, #ed7657), 0 0 24px var(--trail-color, #ed7657); clip-path: polygon(50% 100%, 0 0, 100% 0); pointer-events: none; transform: translateY(0); transform-origin: top center; animation-delay: var(--trail-delay, 0ms); }
 .trail-effect-ember { animation: trail-flicker .55s ease-in-out infinite alternate; }
 .trail-head { animation: none !important; transform: none !important; }
@@ -256,6 +259,12 @@ body #game-world.flipped-route { background: linear-gradient(180deg, #5b3285 0%,
 .maker-cell.asteroid { border-color: #f6c46e; background: #1b3342; }
 .maker-cell.special { background: #f6c46e; }
 .maker-cell.titan { background: #f58bff; }
+.maker-cell.powerup { border: 2px solid #fff3bd; color: #101b2b; font-weight: 700; }
+.maker-cell.powerup.shield { background: #6ecbff; }
+.maker-cell.powerup.boost { background: #a7e0bc; }
+.maker-cell.powerup.rapid { background: #f6c46e; }
+.maker-cell.powerup.cannon { background: #ed7657; }
+.maker-cell.powerup.star { background: conic-gradient(#ed7657, #f6c46e, #6ecbff, #b991ff, #ed7657); }
 .maker-cell.portal::before, .maker-cell.asteroid::before { position: absolute; content: ''; pointer-events: none; }
 .maker-cell.portal::before { inset: 17%; border: 2px solid #d9f5ff; border-radius: 50%; box-shadow: 0 0 8px #6ecbff, inset 0 0 6px #6ecbff; }
 .maker-cell.portal::after { position: relative; z-index: 1; content: "↔"; color: #d9f5ff; font-size: clamp(.65rem, 1.5vw, 1.1rem); font-weight: 700; text-shadow: 0 0 7px #6ecbff; }
@@ -267,12 +276,19 @@ body #game-world.flipped-route { background: linear-gradient(180deg, #5b3285 0%,
 .maker-cell.special::after { content: "✹"; color: #fff; font-size: 1.1rem; }
 .maker-cell.miniBoss::after { content: "◈"; color: #fff; font-size: 1.1rem; }
 .maker-cell.titan::after { content: "T"; color: #fff; font-weight: 700; }
-.game-frame .portal { position: absolute; z-index: 4; display: grid; place-items: center; width: 58px; height: 58px; border: 3px solid #fff; border-radius: 18%; color: #fff; background: #f58bff99; box-shadow: 0 0 0 6px #f58bff33, 0 0 28px #f58bff; font-size: 1.7rem; transform: rotate(45deg); animation: portal-pulse 1.3s ease-in-out infinite; }
-.game-frame .portal::before { position: absolute; inset: 9px; content: ''; border: 2px solid #6ecbff; border-radius: 12%; box-shadow: inset 0 0 12px #6ecbff, 0 0 12px #6ecbff; }
-.game-frame .portal { text-shadow: 0 0 8px #fff; }
-.game-frame .portal::after { position: absolute; inset: -8px; content: ''; border: 2px solid #f6c46e; border-radius: 22%; opacity: .7; }
+.game-frame .portal, .game-frame .secret-portal { position: absolute; z-index: 4; display: grid; place-items: center; width: 58px; height: 58px; border: 3px solid #fff; border-radius: 18%; color: #fff; background: #f58bff99; box-shadow: 0 0 0 6px #f58bff33, 0 0 28px #f58bff; font-size: 1.7rem; transform: rotate(45deg); animation: portal-pulse 1.3s ease-in-out infinite; }
+.game-frame .portal.hidden, .game-frame .secret-portal.hidden { opacity: 0; visibility: hidden; }
+.game-frame .portal::before, .game-frame .secret-portal::before { position: absolute; inset: 9px; content: ''; border: 2px solid #6ecbff; border-radius: 12%; box-shadow: inset 0 0 12px #6ecbff, 0 0 12px #6ecbff; }
+.game-frame .portal, .game-frame .secret-portal { text-shadow: 0 0 8px #fff; }
+.game-frame .portal::after, .game-frame .secret-portal::after { position: absolute; inset: -8px; content: ''; border: 2px solid #f6c46e; border-radius: 22%; opacity: .7; }
 .portal-key-room { position: absolute; z-index: 20; inset: 0; display: grid; place-items: center; overflow: hidden; background: radial-gradient(circle at 50% 50%, #d9b8ff44 0 8%, #101b2bee 58%); pointer-events: none; animation: portal-room-in .26s ease-out both; }
 .portal-key-room-warp { position: absolute; width: 48vmax; height: 48vmax; border: 14px solid #b991ff88; border-radius: 50%; box-shadow: 0 0 50px #f58bff, inset 0 0 50px #6ecbff; animation: portal-room-warp .85s linear infinite; }
+.portal-room-boundary { position: absolute; inset: 34px; border: 4px solid #d9b8ff88; box-shadow: inset 0 0 0 3px #6ecbff55, 0 0 28px #f58bff88; }
+.portal-room-player { position: absolute; z-index: 8; width: 48px; height: 58px; border: 3px solid #f4f3cf; border-radius: 52% 52% 45% 45%; background: #ed7657; box-shadow: 0 0 0 5px #ed765733, 0 8px 18px #101b2b88; transform: translate(0, 0); }
+.portal-room-player::before { position: absolute; top: 9px; left: 10px; width: 22px; height: 17px; content: ''; border: 2px solid #143746; border-radius: 50%; background: #89d0bf; }
+.portal-room-player::after { position: absolute; bottom: -14px; left: 15px; width: 13px; height: 16px; content: ''; background: #f6c46e; clip-path: polygon(50% 100%, 0 0, 100% 0); }
+.portal-boss-room-active > .player { opacity: 0; }
+.portal-key-room .boss { z-index: 7; }
 .portal-key-chamber { position: relative; display: grid; place-items: center; align-content: center; gap: 9px; width: min(270px, 72vw); min-height: 220px; padding: 22px; border: 4px solid #d9f5ff; outline: 10px solid #6ecbff33; color: #f3f5e9; background: linear-gradient(135deg, #19354a, #35245d); box-shadow: 0 0 0 5px #f58bff55, 0 0 45px #d9b8ff; text-align: center; }
 .portal-key-chamber::before, .portal-key-chamber::after { position: absolute; width: 22px; height: 22px; content: ''; border-color: #f6c46e; border-style: solid; }
 .portal-key-chamber::before { top: -4px; left: -4px; border-width: 5px 0 0 5px; }
@@ -458,6 +474,7 @@ body #game-world.flipped-route { background: linear-gradient(180deg, #5b3285 0%,
 @keyframes wheel-spin { to { transform: rotate(360deg); } }
 @keyframes result-fade-in { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: scale(1); } }
 @keyframes planet-shift { 0% { opacity: 0; transform: scale(1.08); } 18% { opacity: 1; transform: scale(1); } 78% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes ground-pound { 50% { filter: brightness(1.8); box-shadow: 0 0 0 9px #f6c46e99, 0 0 28px #f58bff; } }
 @keyframes trail-flicker { to { transform: scale(.65) translateY(8px); opacity: .45; } }
 @keyframes trail-comet { to { transform: translateX(-7px) scaleX(1.5); opacity: .55; } }
 @keyframes trail-comet-flipped { to { transform: rotate(18deg) translateX(-7px) scaleX(1.5); opacity: .55; } }

@@ -23,7 +23,8 @@ type PrestigeShipArt = "stellar-guard" | "quantum-dancer" | "cosmic-queen" | "vo
 type AvatarStyle = { name: string; color: string; shape: "classic" | "dart" | "ring" | "blade"; required: number; image?: string; cssArt?: PrestigeShipArt; defaultSkin: number; prestige?: number; golden?: boolean; jackpot?: boolean };
 type FlippedRoute = { walls: number[]; enemies: number[]; spikes: number[]; gravity: number[]; key?: number };
 type SecretKeyPlacement = { id: string; index: number; y?: number; requiresPortal?: boolean };
-type Level = { name: string; briefing: string; length: number; asteroids: number[]; walls: number[]; enemies: number[]; spikes: number[]; gravity: number[]; portals?: number[]; secretPortals?: { index: number; secretId: string }[]; flip?: number[]; flippedRoute?: FlippedRoute; powerups?: { index: number; kind: PowerupKind }[]; key?: number; secretKey?: SecretKeyPlacement; secretId?: string; specialAsteroids?: number[]; miniBosses?: number[]; boss?: boolean; bossIndex?: number; secret?: boolean; prestige?: boolean };
+type SecretPortal = { index: number; secretId: string; y?: number };
+type Level = { name: string; briefing: string; length: number; asteroids: number[]; walls: number[]; enemies: number[]; spikes: number[]; gravity: number[]; portals?: number[]; secretPortals?: SecretPortal[]; flip?: number[]; flippedRoute?: FlippedRoute; powerups?: { index: number; kind: PowerupKind }[]; key?: number; secretKey?: SecretKeyPlacement; secretId?: string; specialAsteroids?: number[]; miniBosses?: number[]; boss?: boolean; bossIndex?: number; secret?: boolean; prestige?: boolean };
 type Rarity = "Common" | "Uncommon" | "Rare" | "Epic" | "Legendary";
 type CosmeticGroup = "skin" | "trail" | "avatar";
 
@@ -33,7 +34,7 @@ const PORTAL_SIZE = 58;
 const CEILING_Y = 20;
 const FLOOR_Y = 300;
 const SPECIAL_ASTEROID_ODDS: Record<Rarity, number> = { Common: 52, Uncommon: 27, Rare: 13, Epic: 6, Legendary: 2 };
-const SPECIAL_ASTEROID_ASTEROID_REWARDS: Record<Rarity, number> = { Common: 5, Uncommon: 12, Rare: 30, Epic: 65, Legendary: 100 };
+const SPECIAL_ASTEROID_REWARD_RANGES: Record<Rarity, readonly [number, number]> = { Common: [50, 100], Uncommon: [101, 250], Rare: [251, 500], Epic: [501, 750], Legendary: [751, 1000] };
 const levels: Level[] = [
     { name: "Quiet Orbit", briefing: "Learn the drift. Claim every asteroid and reach the beacon.", length: 12, asteroids: [2, 5, 8], walls: [4], enemies: [], spikes: [], gravity: [] },
     { name: "Redline Pass", briefing: "The rocks are tighter here. Watch the sentry fire.", length: 15, asteroids: [2, 5, 8, 12], walls: [4, 7], enemies: [9], spikes: [6], gravity: [] },
@@ -155,6 +156,7 @@ let projectiles: Projectile[] = [];
 let trailElement: HTMLElement[] = [];
 let trailPositions: { x: number; y: number }[] = [];
 let trailDirection = 1;
+let trailActive = false;
 let projectileTimer = 0;
 let trailTimer = 0;
 let trailMovementFrames = 0;
@@ -190,9 +192,9 @@ let spinInProgress = false;
 let activePlanet: "normal" | "prestige" = "normal";
 let secretBossRoomActive = false;
 let secretBoss: Boss | null = null;
-let secretBossDefeated = false;
-let currentSecretPortalTarget: string | null = null; // Track which secret level this portal leads to
-let lastJumpDirection = 0; // -1 for left, 1 for right, 0 for none
+let currentSecretPortalTarget: string | null = null;
+let portalReturnX: number | null = null;
+let lastJumpDirection = 0;
 let starPowerupActive = false;
 let starPowerupTimer = 0;
 let starPowerupElement: HTMLElement | null = null;
@@ -224,14 +226,56 @@ function loadCustomLevels() {
         levels.splice(Math.min(index, levels.length), 0, { name: `Frontier ${index + 1}`, briefing: "A longer route on the blue planet. Reach the beacon and claim the whole lane.", length: 28 + index, asteroids: [3, 7, 11, 15, 19, 23], walls: [5, 9, 13, 17, 21, 25], enemies: [8, 16, 24], spikes: [6, 14, 22], gravity: [10, 20], portals: [12, 26], boss: index === 19 });
     }
     for (let index = 0; index < 20; index++) {
-        const prestigeSecretIds = ["stellar-sanctum", "quantum-depths", "infinity-spiral"];
-        const secretKey = prestigeSecretIds[index] ? { id: prestigeSecretIds[index], index: 29, y: 66, requiresPortal: true } : undefined;
-        levels.push({ name: prestigeRouteNames[index], briefing: secretKey ? "A prestige key is hidden above the far portal. Flip the planet only inside an anti-gravity zone." : "A longer route around the ringed planet. Planetary flip fields reveal the upper lane.", length: 38 + index, asteroids: [3, 8, 13, 18, 23, 28, 33], walls: [5, 10, 15, 20, 25, 30], enemies: [7, 17, 27, 35], spikes: [6, 14, 24, 32], gravity: [11, 21, 31], portals: [16, 29], flip: [11, 31], secretKey, boss: index === 19, prestige: true, secretPortals: index === 0 ? [{ index: 5, secretId: "stellar-sanctum" }] : index === 5 ? [{ index: 3, secretId: "quantum-depths" }] : index === 10 ? [{ index: 4, secretId: "infinity-spiral" }] : undefined });
+        levels.push({ name: prestigeRouteNames[index], briefing: "A longer route around the ringed planet. Planetary flip fields reveal the upper lane.", length: 38 + index, asteroids: [3, 8, 13, 18, 23, 28, 33], walls: [5, 10, 15, 20, 25, 30], enemies: [7, 17, 27, 35], spikes: [6, 14, 24, 32], gravity: [11, 21, 31], flip: [11, 31], boss: index === 19, prestige: true });
     }
+}
+
+function getHiddenPortalIndex(level: Level) {
+    const occupied = new Set([...level.walls, ...level.enemies, ...level.spikes, ...level.gravity]);
+    const candidates = Array.from({ length: Math.max(1, level.length - 4) }, (_, index) => index + 2).filter((index) => !occupied.has(index));
+    return candidates[Math.floor(Math.random() * candidates.length)] ?? Math.max(2, Math.floor(level.length / 2));
+}
+
+function getHiddenPortalY() {
+    return [68, 82, 96][Math.floor(Math.random() * 3)];
+}
+
+function pickDistinctLevelIndices(candidates: number[], count: number) {
+    const pool = [...candidates];
+    const selected: number[] = [];
+    while (selected.length < count && pool.length) selected.push(...pool.splice(Math.floor(Math.random() * pool.length), 1));
+    return selected;
+}
+
+function configurePortalDistribution() {
+    levels.forEach((level) => { level.portals = []; level.secretPortals = undefined; });
+    const secretLevels = levels.map((level, index) => ({ level, index })).filter(({ level }) => level.secret);
+    secretLevels.forEach(({ level, index }) => {
+        if (!level.secretId) level.secretId = `secret-level-${index + 1}`;
+        level.secretPortals = [{ index: getHiddenPortalIndex(level), y: getHiddenPortalY(), secretId: level.secretId }];
+    });
+
+    const normalSources = levels.map((level, index) => ({ level, index })).filter(({ level }) => !level.secret && !level.prestige);
+    const prestigeSources = levels.map((level, index) => ({ level, index })).filter(({ level }) => !level.secret && level.prestige);
+    const normalTargets = secretLevels.filter(({ level }) => !level.prestige && level.secretId !== "prestige-gate");
+    const prestigeTargets = secretLevels.filter(({ level }) => level.prestige);
+    pickDistinctLevelIndices(normalSources.map(({ index }) => index), 3).forEach((sourceIndex, portalIndex) => {
+        const target = normalTargets[portalIndex]?.level.secretId;
+        if (!target) return;
+        levels[sourceIndex].portals = [];
+        levels[sourceIndex].secretPortals = [{ index: getHiddenPortalIndex(levels[sourceIndex]), y: getHiddenPortalY(), secretId: target }];
+    });
+    pickDistinctLevelIndices(prestigeSources.map(({ index }) => index), 3).forEach((sourceIndex, portalIndex) => {
+        const target = prestigeTargets[portalIndex]?.level.secretId;
+        if (!target) return;
+        levels[sourceIndex].portals = [];
+        levels[sourceIndex].secretPortals = [{ index: getHiddenPortalIndex(levels[sourceIndex]), y: getHiddenPortalY(), secretId: target }];
+    });
 }
 
 export function startApp() {
     loadCustomLevels();
+    configurePortalDistribution();
     document.body.innerHTML = "";
     window.addEventListener("keydown", handleKeyDown);
     window.addEventListener("keyup", handleKeyUp);
@@ -459,11 +503,6 @@ function showCustomization() {
     
     const rarityOrder: Rarity[] = ["Common", "Uncommon", "Rare", "Epic", "Legendary"];
     
-    // Filter collections based on planetary flip toggle
-    const filteredSkins = showFlip ? skins.filter(s => s.prestige) : skins.filter(s => !s.prestige);
-    const filteredTrails = showFlip ? trails.filter(t => t.prestige) : trails.filter(t => !t.prestige);
-    const filteredAvatars = showFlip ? avatars.filter(a => a.prestige) : avatars.filter(a => !a.prestige);
-    
     // Create arrays with original indices
     const skinsWithIndex = showFlip 
         ? skins.map((s, i) => ({ ...s, originalIndex: i })).filter(s => s.prestige)
@@ -488,17 +527,17 @@ function showCustomization() {
             group.append(grid); panel.append(group);
         });
     };
-    appendRarityGroups("Skins", skinsWithIndex, "customization-grid", (skin, index, rarity) => {
+    appendRarityGroups("Skins", skinsWithIndex, "customization-grid", (skin, _index, rarity) => {
         const button = document.createElement("button"); button.className = `loadout-choice ${selectedSkin === skin.originalIndex ? "selected" : ""}`; button.disabled = !isSkinUnlocked(skin);
         button.innerHTML = `<span>${skin.name}</span>${createRarityBadge(rarity)}`;
         button.addEventListener("click", () => { selectedSkin = skin.originalIndex; localStorage.setItem("orbit-skin", String(selectedSkin)); showCustomization(); }); return button;
     });
-    appendRarityGroups("Trails", trailsWithIndex, "customization-grid", (trail, index, rarity) => {
+    appendRarityGroups("Trails", trailsWithIndex, "customization-grid", (trail, _index, rarity) => {
         const button = document.createElement("button"); button.className = `loadout-choice ${selectedTrail === trail.originalIndex ? "selected" : ""}`; button.disabled = !isTrailUnlocked(trail);
         button.innerHTML = `<span>${trail.name}</span>${createRarityBadge(rarity)}`;
         button.addEventListener("click", () => { selectedTrail = trail.originalIndex; localStorage.setItem("orbit-trail", String(selectedTrail)); showCustomization(); }); return button;
     });
-    appendRarityGroups("Avatars", avatarsWithIndex, "avatar-grid", (avatar, index, rarity) => {
+    appendRarityGroups("Avatars", avatarsWithIndex, "avatar-grid", (avatar, _index, rarity) => {
         const unlocked = isAvatarUnlocked(avatar);
         const button = document.createElement("button"); button.className = `avatar-option ${selectedAvatar === avatar.originalIndex ? "selected" : ""}`; button.disabled = !unlocked;
         button.innerHTML = `${avatar.cssArt ? createCssShipArtMarkup(avatar.cssArt, avatar.name, selectedSkinStyle.color) : avatar.image ? createShipArtMarkup(avatar.image, avatar.name, selectedSkinStyle.color) : `<i style="--avatar-color:${selectedSkinStyle.color}"></i>`}<span>${avatar.name}</span>${createRarityBadge(rarity)}<small>${unlocked ? "READY" : avatar.prestige ? `PRESTIGE ${avatar.prestige}` : avatar.golden ? "20 routes" : avatar.jackpot ? "JACKPOT" : "LOCKED"}</small>`;
@@ -541,18 +580,21 @@ function showLevelMaker() {
     const prestigeRouteInput = prestigeToggle.querySelector<HTMLInputElement>("input")!;
     const areaState = document.createElement("span"); areaState.className = "maker-area-state";
     const palette = document.createElement("nav"); palette.className = "maker-palette";
-    const tiles = ["empty", "wall", "spike", "gravity", "portal", "asteroid", "special", "enemy", "miniBoss", "titan"];
+    const tiles = ["empty", "wall", "spike", "gravity", "portal", "asteroid", "special", "enemy", "miniBoss", "titan", "powerupShield", "powerupBoost", "powerupRapid", "powerupCannon", "powerupStar"];
+    const powerupTileKinds: Record<string, PowerupKind> = { powerupShield: "shield", powerupBoost: "boost", powerupRapid: "rapid", powerupCannon: "cannon", powerupStar: "star" };
+    const makerCellClass = (kind: string) => `maker-cell ${kind}${powerupTileKinds[kind] ? ` powerup ${powerupTileKinds[kind]}` : ""}`;
     let selectedTile = "wall";
     let deleteMode = false;
     const history: string[][] = [];
     const tileLabels: Record<string, string> = { empty: "Erase", wall: "Platform", miniBoss: "Dark Knight", titan: "Titan", special: "Special asteroid" };
+    tileLabels.powerupShield = "Shield power-up"; tileLabels.powerupBoost = "Boost power-up"; tileLabels.powerupRapid = "Rapid power-up"; tileLabels.powerupCannon = "Cannon power-up"; tileLabels.powerupStar = "Rainbow Star";
     tiles.forEach((tile) => { const button = createTextButton(tileLabels[tile] ?? tile, () => { selectedTile = tile; deleteMode = false; buildMode.classList.add("selected"); eraseMode.classList.remove("selected"); palette.querySelectorAll("button").forEach((item) => item.classList.toggle("selected", item.dataset.tile === tile)); }); button.dataset.tile = tile; button.classList.toggle("selected", tile === selectedTile); palette.append(button); });
     const grid = document.createElement("div"); grid.className = "maker-grid"; grid.setAttribute("aria-label", "Normal area grid");
-    const cells = Array.from({ length: 144 }, (_, index) => { const cell = document.createElement("button"); cell.type = "button"; cell.className = "maker-cell empty"; cell.dataset.kind = "empty"; cell.textContent = ""; cell.setAttribute("aria-label", `Tile ${index + 1}`); cell.addEventListener("click", () => { history.push(cells.map((item) => item.dataset.kind ?? "empty")); const next = deleteMode ? "empty" : selectedTile; cell.dataset.kind = next; cell.className = `maker-cell ${next}`; cell.textContent = next === "empty" ? "" : next === "gravity" ? "" : ""; }); grid.append(cell); return cell; });
-    const restore = (snapshot: string[]) => cells.forEach((cell, index) => { const kind = snapshot[index] ?? "empty"; cell.dataset.kind = kind; cell.className = `maker-cell ${kind}`; cell.textContent = ""; });
+    const cells = Array.from({ length: 144 }, (_, index) => { const cell = document.createElement("button"); cell.type = "button"; cell.className = makerCellClass("empty"); cell.dataset.kind = "empty"; cell.textContent = ""; cell.setAttribute("aria-label", `Tile ${index + 1}`); cell.addEventListener("click", () => { history.push(cells.map((item) => item.dataset.kind ?? "empty")); const next = deleteMode ? "empty" : selectedTile; cell.dataset.kind = next; cell.className = makerCellClass(next); cell.textContent = next === "empty" ? "" : next === "gravity" ? "" : powerupTileKinds[next] ? powerupLabels[powerupTileKinds[next]].slice(0, 1) : ""; }); grid.append(cell); return cell; });
+    const restore = (snapshot: string[]) => cells.forEach((cell, index) => { const kind = snapshot[index] ?? "empty"; cell.dataset.kind = kind; cell.className = makerCellClass(kind); cell.textContent = powerupTileKinds[kind] ? powerupLabels[powerupTileKinds[kind]].slice(0, 1) : ""; });
     const flippedTab = document.createElement("button"); flippedTab.className = "maker-tool-button"; flippedTab.type = "button"; flippedTab.textContent = "Flipped planet area"; flippedTab.hidden = true;
     const flippedGrid = document.createElement("div"); flippedGrid.className = "maker-grid"; flippedGrid.hidden = true; flippedGrid.setAttribute("aria-label", "Flipped planet area grid");
-    const flippedCells = Array.from({ length: 144 }, (_, index) => { const cell = document.createElement("button"); cell.type = "button"; cell.className = "maker-cell empty"; cell.dataset.kind = "empty"; cell.setAttribute("aria-label", `Flipped tile ${index + 1}`); cell.addEventListener("click", () => { const next = deleteMode ? "empty" : selectedTile; cell.dataset.kind = next; cell.className = `maker-cell ${next}`; }); flippedGrid.append(cell); return cell; });
+    const flippedCells = Array.from({ length: 144 }, (_, index) => { const cell = document.createElement("button"); cell.type = "button"; cell.className = makerCellClass("empty"); cell.dataset.kind = "empty"; cell.setAttribute("aria-label", `Flipped tile ${index + 1}`); cell.addEventListener("click", () => { const next = deleteMode ? "empty" : selectedTile; cell.dataset.kind = next; cell.className = makerCellClass(next); cell.textContent = powerupTileKinds[next] ? powerupLabels[powerupTileKinds[next]].slice(0, 1) : ""; }); flippedGrid.append(cell); return cell; });
     const showMainGrid = () => { grid.hidden = false; flippedGrid.hidden = true; buildMode.textContent = "Build"; };
     flippedTab.addEventListener("click", () => { grid.hidden = true; flippedGrid.hidden = false; buildMode.textContent = "Flipped build"; });
     const updateFlippedTab = () => {
@@ -566,14 +608,16 @@ function showLevelMaker() {
     clear.addEventListener("click", () => { history.push(cells.map((item) => item.dataset.kind ?? "empty")); restore([]); });
     buildMode.addEventListener("click", () => { deleteMode = false; modeLabel.textContent = "BUILD MODE"; buildMode.classList.add("selected"); eraseMode.classList.remove("selected"); });
     eraseMode.addEventListener("click", () => { deleteMode = true; modeLabel.textContent = "DELETE MODE"; eraseMode.classList.add("selected"); buildMode.classList.remove("selected"); });
-    const save = createMenuButton("Save custom route", () => {
-        const level: Level = { name: `Workshop ${Date.now().toString().slice(-4)}`, briefing: "A route assembled in the grid workshop.", length: 24, asteroids: [], walls: [], enemies: [], spikes: [], gravity: [], portals: [], flip: [], specialAsteroids: [], miniBosses: [], prestige: prestigeRouteInput.checked };
-        cells.forEach((cell, index) => { const tile = cell.dataset.kind; const column = index % 24; if (tile === "asteroid" || tile === "special") level.asteroids.push(column + 1); if (tile === "special") level.specialAsteroids?.push(column + 1); if (tile === "wall") level.walls.push(column + 1); if (tile === "enemy") level.enemies.push(column + 1); if (tile === "spike") level.spikes.push(column + 1); if (tile === "gravity") level.gravity.push(column + 1); if (tile === "portal") level.portals?.push(column + 1); if (tile === "miniBoss") level.miniBosses?.push(column + 1); if (tile === "titan") { level.boss = true; level.bossIndex = column + 1; } });
+    const saveRoute = (startImmediately: boolean) => {
+        const level: Level = { name: `Workshop ${Date.now().toString().slice(-4)}`, briefing: "A route assembled in the grid workshop.", length: 24, asteroids: [], walls: [], enemies: [], spikes: [], gravity: [], portals: [], flip: [], specialAsteroids: [], miniBosses: [], powerups: [], prestige: prestigeRouteInput.checked };
+        cells.forEach((cell, index) => { const tile = cell.dataset.kind ?? "empty"; const column = index % 24; if (tile === "asteroid" || tile === "special") level.asteroids.push(column + 1); if (tile === "special") level.specialAsteroids?.push(column + 1); if (tile === "wall") level.walls.push(column + 1); if (tile === "enemy") level.enemies.push(column + 1); if (tile === "spike") level.spikes.push(column + 1); if (tile === "gravity") level.gravity.push(column + 1); if (tile === "portal") level.portals?.push(column + 1); if (tile === "miniBoss") level.miniBosses?.push(column + 1); if (tile === "titan") { level.boss = true; level.bossIndex = column + 1; } if (powerupTileKinds[tile]) level.powerups?.push({ index: column + 1, kind: powerupTileKinds[tile] }); });
         if (level.prestige && level.gravity.length) { const route: FlippedRoute = { walls: [], enemies: [], spikes: [], gravity: [], key: 19 }; flippedCells.forEach((cell, index) => { const column = index % 24 + 1; if (cell.dataset.kind === "wall") route.walls.push(column); if (cell.dataset.kind === "enemy") route.enemies.push(column); if (cell.dataset.kind === "spike") route.spikes.push(column); if (cell.dataset.kind === "gravity") route.gravity.push(column); if (cell.dataset.kind === "asteroid" || cell.dataset.kind === "special") route.key = column; }); level.flippedRoute = route; }
-        const saved = JSON.parse(localStorage.getItem("orbit-custom-levels") ?? "[]") as Level[]; saved.push(level); localStorage.setItem("orbit-custom-levels", JSON.stringify(saved)); levels.push(level); showLevelMenu();
-    });
+        const saved = JSON.parse(localStorage.getItem("orbit-custom-levels") ?? "[]") as Level[]; saved.push(level); localStorage.setItem("orbit-custom-levels", JSON.stringify(saved)); levels.push(level); if (startImmediately) startGame(levels.length - 1); else showLevelMenu();
+    };
+    const save = createMenuButton("Save custom route", () => saveRoute(false));
+    const saveAndTest = createMenuButton("Save and test route", () => saveRoute(true));
     updateFlippedTab();
-    toolbar.append(areaState, flippedTab); menu.append(toolbar, grid, flippedGrid, palette, save, createTextButton("Normal area", showMainGrid), createTextButton("Back to tester", showTesterPanel)); document.body.replaceChildren(menu);
+    toolbar.append(areaState, flippedTab); menu.append(toolbar, grid, flippedGrid, palette, save, saveAndTest, createTextButton("Normal area", showMainGrid), createTextButton("Back to tester", showTesterPanel)); document.body.replaceChildren(menu);
 }
 
 function createTextButton(text: string, action: () => void) {
@@ -622,7 +666,7 @@ function showShop() {
     });
     const wheel = document.createElement("article");
     wheel.className = "asteroid-wheel";
-    wheel.innerHTML = `<div class="wheel-ring"><span>✦</span></div><b>ASTEROID ROLL</b><small>1 special asteroid / up to 100 normal asteroids / prestige cosmetics on Epic+ tiers</small>`;
+    wheel.innerHTML = `<div class="wheel-ring"><span>✦</span></div><b>ASTEROID ROLL</b><small>1 special asteroid / 50-1,000 normal asteroids / prestige cosmetics on Epic+ tiers</small>`;
     const roll = document.createElement("button");
     roll.className = "text-button shop-buy";
     roll.type = "button";
@@ -687,7 +731,8 @@ function rollSpecialAsteroidRarity(): Rarity {
 }
 
 function getNormalSpinReward(rarity: Rarity) {
-    const reward = SPECIAL_ASTEROID_ASTEROID_REWARDS[rarity];
+    const [minimum, maximum] = SPECIAL_ASTEROID_REWARD_RANGES[rarity];
+    const reward = minimum + Math.floor(Math.random() * (maximum - minimum + 1));
     asteroidsClaimed += reward;
     localStorage.setItem("orbit-claims", String(asteroidsClaimed));
     if (rarity === "Legendary") {
@@ -734,7 +779,8 @@ function showDropRates() {
     rarityOrder.forEach((rarity) => {
         const item = document.createElement("article");
         item.className = `rarity-odds-card rarity-${rarity.toLowerCase()}`;
-        const rewardText = `${SPECIAL_ASTEROID_ASTEROID_REWARDS[rarity]} normal asteroids`;
+        const [minimum, maximum] = SPECIAL_ASTEROID_REWARD_RANGES[rarity];
+        const rewardText = `${minimum.toLocaleString()}-${maximum.toLocaleString()} normal asteroids`;
         item.innerHTML = `${createRarityBadge(rarity)}<strong>${SPECIAL_ASTEROID_ODDS[rarity]}%</strong><small>${rewardText}</small>`;
         odds.append(item);
     });
@@ -1090,71 +1136,81 @@ function unlockEndGoal() {
 function cancelPortalTransit() {
     if (portalTransitTimer) window.clearTimeout(portalTransitTimer);
     portalTransitTimer = 0;
+    projectiles.forEach((projectile) => projectile.element.remove());
+    projectiles = [];
     portalTravelInProgress = false;
     secretBossRoomActive = false;
     secretBoss = null;
-    secretBossDefeated = false;
+    currentSecretPortalTarget = null;
+    portalReturnX = null;
+    world.classList.remove("portal-boss-room-active");
     document.querySelector(".portal-key-room")?.remove();
 }
 
 function updateSecretBossRoom() {
-    if (!secretBoss || secretBoss.defeated) return;
-    const room = document.querySelector(".portal-key-room");
+    const room = document.querySelector<HTMLElement>(".portal-key-room");
     if (!room) return;
-    
-    const bossElement = room.querySelector(".void-warden") as HTMLElement | null;
-    if (bossElement) {
-        bossElement.style.left = `${secretBoss.x}px`;
-        bossElement.style.top = `${secretBoss.y}px`;
-    }
-    
-    // Player collision with secret boss
-    const playerBox = { x: playerX, y: playerY, width: playerWidth, height: playerHeight };
-    const bossBox = { x: secretBoss.x, y: secretBoss.y, width: 128, height: 150 };
-    if (intersects(playerBox, bossBox)) {
-        const landedOnHead = verticalSpeed >= 0 && previousPlayerY + playerHeight <= bossBox.y + 18;
-        if (landedOnHead) {
-            damageSecretBoss();
-            playerY = bossBox.y - playerHeight;
-            verticalSpeed = jumpPower * 0.65;
-            jumpCount = 1;
-            statusLabel.textContent = "Void Warden crushed. Ground pound landed!";
-            return;
+    const roomPlayer = room.querySelector<HTMLElement>(".portal-room-player");
+    const roomWidth = room.clientWidth || 1080;
+    const leftHeld = pressedKeys.has("arrowleft") || pressedKeys.has("a");
+    const rightHeld = pressedKeys.has("arrowright") || pressedKeys.has("d");
+    if (leftHeld) playerX -= 5 * (boostTimer > 0 ? 1.7 : 1);
+    if (rightHeld) playerX += 5 * (boostTimer > 0 ? 1.7 : 1);
+    playerX = Math.max(24, Math.min(roomWidth - playerWidth - 24, playerX));
+    previousPlayerY = playerY;
+    verticalSpeed += gravity;
+    playerY += verticalSpeed;
+    if (playerY >= FLOOR_Y) { playerY = FLOOR_Y; verticalSpeed = 0; jumpCount = 0; }
+    if (roomPlayer) roomPlayer.style.transform = `translate(${playerX}px, ${playerY}px)`;
+    if (secretBoss) {
+        const bossElement = room.querySelector<HTMLElement>(".void-warden");
+        if (bossElement) { bossElement.style.left = `${secretBoss.x}px`; bossElement.style.top = `${secretBoss.y}px`; }
+        if (!secretBoss.defeated) {
+            const bossBox = { x: secretBoss.x, y: secretBoss.y, width: 128, height: 150 };
+            if (intersects(playerBox(), bossBox)) {
+                const landedOnHead = verticalSpeed >= 0 && previousPlayerY + playerHeight <= bossBox.y + 18;
+                if (landedOnHead) {
+                    damageSecretBoss();
+                    playerY = bossBox.y - playerHeight;
+                    verticalSpeed = jumpPower * 0.65;
+                    jumpCount = 1;
+                    roomPlayer?.classList.add("ground-pound");
+                    window.setTimeout(() => roomPlayer?.classList.remove("ground-pound"), 180);
+                    statusLabel.textContent = "Void Warden crushed. Ground pound landed!";
+                } else if (shieldCharges > 0) {
+                    shieldCharges--;
+                    playerX = secretBoss.x - playerWidth - 8;
+                    statusLabel.textContent = "Shield absorbed the Void Warden impact.";
+                } else {
+                    showGameOver("The Void Warden crushed your hull.");
+                }
+            }
+            if (shootingHeld || pressedKeys.has("e")) shootSecretBoss();
+            projectileTimer++;
+            if (projectileTimer >= (rapidTimer > 0 ? 52 : reducedEffects ? 120 : 90)) { projectileTimer = 0; fireSecretBossProjectile(); }
         }
-        if (shieldCharges > 0) { 
-            shieldCharges--; 
-            playerX = secretBoss.x - playerWidth - 8; 
-            statusLabel.textContent = "Shield absorbed the Void Warden impact."; 
-        } else { 
-            showGameOver("The Void Warden crushed your hull."); 
-        }
-        return;
-    }
-    
-    if (shootingHeld || pressedKeys.has("e")) {
-        shootSecretBoss();
-    }
-    
-    projectileTimer++;
-    if (projectileTimer >= (rapidTimer > 0 ? 52 : reducedEffects ? 120 : 90)) {
-        projectileTimer = 0;
-        fireSecretBossProjectile();
     }
     updateProjectiles();
 }
 
 function shootSecretBoss() {
-    if (!gameActive || !secretBoss || secretBoss.defeated || (cannonTimer <= 0 && rapidCannonUntil <= performance.now())) return;
-    if (playerShotTimer > 0) return;
+    if (!gameActive || !secretBoss || secretBoss.defeated || (cannonTimer <= 0 && rapidCannonUntil <= performance.now()) || playerShotTimer > 0) return;
     playerShotTimer = rapidUntil > performance.now() ? 8 : 20;
-    const element = document.createElement("div"); element.className = "player-projectile"; document.querySelector(".portal-key-room")?.append(element);
+    const element = document.createElement("div");
+    element.className = "player-projectile";
+    document.querySelector(".portal-key-room")?.append(element);
     projectiles.push({ x: playerX + playerWidth, y: playerY + 22, vx: 8, vy: 0, element, owner: "player" });
 }
 
 function fireSecretBossProjectile() {
     if (!secretBoss || secretBoss.defeated) return;
-    const directionX = playerX + 24 - secretBoss.x, directionY = playerY + 28 - secretBoss.y, distance = Math.max(1, Math.hypot(directionX, directionY)), element = document.createElement("div");
-    element.className = "boss-projectile secret-boss-projectile"; document.querySelector(".portal-key-room")?.append(element); projectiles.push({ x: secretBoss.x, y: secretBoss.y + 50, vx: directionX / distance * 4.2, vy: directionY / distance * 4.2, element, owner: "enemy" });
+    const directionX = playerX + 24 - secretBoss.x;
+    const directionY = playerY + 28 - secretBoss.y;
+    const distance = Math.max(1, Math.hypot(directionX, directionY));
+    const element = document.createElement("div");
+    element.className = "boss-projectile secret-boss-projectile";
+    document.querySelector(".portal-key-room")?.append(element);
+    projectiles.push({ x: secretBoss.x + 64, y: secretBoss.y + 76, vx: directionX / distance * 4.2, vy: directionY / distance * 4.2, element, owner: "enemy" });
 }
 
 function damageSecretBoss() {
@@ -1164,34 +1220,24 @@ function damageSecretBoss() {
     const bossElement = room?.querySelector(".void-warden");
     bossElement?.classList.add("hit");
     window.setTimeout(() => bossElement?.classList.remove("hit"), 180);
-    if (secretBoss.health <= 0) {
-        secretBoss.defeated = true;
-        secretBossDefeated = true;
-        bossElement?.classList.add("defeated");
-        const keyToGrant = levelKey && !levelKey.collected ? levelKey : null;
-        if (keyToGrant) {
-            keyToGrant.collected = true;
-            secretKeyRevealed = true;
-            localStorage.setItem(`orbit-key-${keyToGrant.id}`, "1");
-            if (keyToGrant.id === "eclipse") localStorage.setItem("orbit-secret-unlocked", "1");
-            unlockEndGoal();
-            room?.classList.add("key-collected");
-            const smallEl = room?.querySelector("small");
-            if (smallEl) smallEl.textContent = `${keyToGrant.id.toUpperCase()} KEY SECURED`;
-            statusLabel.textContent = "Void Warden defeated. Secret key claimed!";
-        } else {
-            statusLabel.textContent = "Void Warden defeated!";
-        }
-        portalTransitTimer = window.setTimeout(() => {
-            if (!gameActive || !portalTravelInProgress) return;
-            const portals = levels[currentLevel].portals ?? [];
-            const targetIndex = portals.length > 1 ? 1 : 0;
-            const target = portals[targetIndex] ?? 5;
-            exitSecretBossRoom(target);
-        }, 1500);
-    } else {
+    if (secretBoss.health > 0) {
         statusLabel.textContent = `Void Warden damaged. ${secretBoss.health} hit remaining.`;
+        return;
     }
+    secretBoss.defeated = true;
+    bossElement?.classList.add("defeated");
+    const keyId = currentSecretPortalTarget;
+    if (keyId) {
+        localStorage.setItem(`orbit-key-${keyId}`, "1");
+        if (keyId === "eclipse") localStorage.setItem("orbit-secret-unlocked", "1");
+        if (levelKey && !levelKey.collected) { levelKey.collected = true; secretKeyRevealed = true; localStorage.setItem(`orbit-key-${levelKey.id}`, "1"); unlockEndGoal(); }
+        if (levelKey?.id === keyId) { levelKey.collected = true; secretKeyRevealed = true; }
+    }
+    room?.classList.add("key-collected");
+    const smallEl = room?.querySelector("small");
+    if (smallEl) smallEl.textContent = keyId ? `${keyId.toUpperCase()} KEY SECURED` : "SECRET KEY SECURED";
+    statusLabel.textContent = "Void Warden defeated. Secret key claimed!";
+    portalTransitTimer = window.setTimeout(() => exitSecretBossRoom(), 1500);
 }
 
 function redrawRouteObjects() {
@@ -1246,9 +1292,9 @@ function startGame(levelIndex = currentLevel) {
     cancelPortalTransit();
     currentLevel = levelIndex;
     buildLevel(currentLevel);
-    playerX = 120; playerY = 300; verticalSpeed = 0; jumpCount = 0; projectiles = []; trailElement = []; trailPositions = []; trailDirection = 1; projectileTimer = 0; trailTimer = 0; playerShotTimer = 0; shieldCharges = 0; boostTimer = 0; rapidTimer = 0; rapidUntil = 0; rapidCannonUntil = 0; cannonTimer = 0; gameStarted = false; gameActive = true; previousPlayerY = playerY; levelStartedAt = performance.now(); elapsedMilliseconds = 0; resetFlippedVisualState(); portalCooldownUntil = 0; secretBossDefeated = false;
+    playerX = 120; playerY = 300; verticalSpeed = 0; jumpCount = 0; projectiles = []; trailElement = []; trailPositions = []; trailDirection = 1; trailActive = false; projectileTimer = 0; trailTimer = 0; playerShotTimer = 0; shieldCharges = 0; boostTimer = 0; rapidTimer = 0; rapidUntil = 0; rapidCannonUntil = 0; cannonTimer = 0; gameStarted = false; gameActive = true; previousPlayerY = playerY; levelStartedAt = performance.now(); elapsedMilliseconds = 0; resetFlippedVisualState(); portalCooldownUntil = 0;
     document.body.innerHTML = "";
-    createGameShell(); createPlayer(); createWorldObjects(); createTrail(); createControls(); startGameLoop();
+    createGameShell(); createPlayer(); createWorldObjects(); createTrail(false); createControls(); startGameLoop();
 }
 
 function showWinScreen() {
@@ -1341,16 +1387,15 @@ createLevelKeyObject();
     
     // Secret portals - one per secret level, placed in hard-to-reach/obscured locations (y=80, reveal radius 50px)
     const secretPortals = levels[currentLevel].secretPortals ?? [];
-    secretPortals.forEach((portal, portalIndex) => { 
-        const element = document.createElement("div"); 
-        element.className = "secret-portal hidden"; 
+    secretPortals.forEach((portal, portalIndex) => {
+        const element = document.createElement("div");
+        element.className = "secret-portal hidden";
         element.textContent = "";
-// Place secret portals higher up - at y=80 for obscured locations
         element.style.left = `${140 + portal.index * TILE_WIDTH}px`;
-        element.style.top = "80px";
-        element.setAttribute("aria-label", `Secret portal to ${portal.secretId}`); 
+        element.style.top = `${portal.y ?? PORTAL_Y}px`;
+        element.setAttribute("aria-label", `Hidden portal to ${portal.secretId}`);
         element.dataset.portalIndex = portalIndex.toString();
-        world.append(element); 
+        world.append(element);
     });
     
     // Regular portals (for flipped route travel) - not in secret levels
@@ -1422,60 +1467,50 @@ function createLevelKeyObject() {
 
 function startPortalTransit(target: number, secretId?: string) {
     if (portalTravelInProgress) return;
+    const sourceLevel = levels[currentLevel];
+    const targetLevel = levels.find((level) => level.secretId === secretId);
+    if (targetLevel?.prestige && !sourceLevel.prestige) return;
     portalTravelInProgress = true;
     secretBossRoomActive = true;
-    currentSecretPortalTarget = secretId ?? null;
+    currentSecretPortalTarget = secretId ?? `secret-room-${currentLevel + 1}-${target}`;
+    portalReturnX = playerX;
+    shipFlipped = false;
+    verticalSpeed = 0;
+    jumpCount = 0;
+    playerY = FLOOR_Y;
+    projectiles.forEach((projectile) => projectile.element.remove());
+    projectiles = [];
     const room = document.createElement("section");
     room.className = "portal-key-room secret-boss-room";
     room.setAttribute("aria-live", "polite");
-    room.innerHTML = `<div class="portal-key-room-warp"></div><div class="portal-key-chamber"><p>PORTAL TRANSIT</p><b>SECRET BOSS CHAMBER</b><div class="portal-key-room-key">⚔</div><small>DEFEAT THE VOID WARDEN TO CLAIM A SECRET LEVEL KEY</small></div>`;
+    room.innerHTML = `<div class="portal-key-room-warp"></div><div class="portal-room-boundary"></div><div class="portal-room-player player"></div><div class="portal-key-chamber"><p>SECRET ROOM</p><b>VOID WARDEN ARENA</b><div class="portal-key-room-key">⚿</div><small>LAND ON ITS HEAD OR USE CANNON FIRE TO SECURE THE KEY</small></div>`;
     document.querySelector(".game-frame")?.append(room);
-    statusLabel.textContent = "Portal lock engaged. Entering the secret boss chamber.";
-    
-    // Always spawn the Void Warden secret boss
-    secretBoss = { x: 400, y: 200, health: 10, maxHealth: 10, defeated: false };
+    world.classList.add("portal-boss-room-active");
+    statusLabel.textContent = "Portal transit complete. Defeat the Void Warden to secure the secret key.";
+    secretBoss = { x: 590, y: 160, health: 8, maxHealth: 8, defeated: false };
     const bossElement = document.createElement("div");
     bossElement.className = "boss secret-boss void-warden";
     bossElement.style.left = `${secretBoss.x}px`;
     bossElement.style.top = `${secretBoss.y}px`;
-    room.querySelector(".portal-key-chamber")?.append(bossElement);
+    room.append(bossElement);
     room.classList.add("has-secret-boss");
-    
-    // Add safety timeout to prevent freezing - auto-exit after 30 seconds
-    const safetyTimeout = window.setTimeout(() => {
-        if (portalTravelInProgress) {
-            console.warn("Portal transit safety timeout triggered");
-            exitSecretBossRoom(target);
-        }
-    }, 30000);
-    
-    portalTransitTimer = window.setTimeout(() => {
-        window.clearTimeout(safetyTimeout);
-        if (!gameActive || !portalTravelInProgress) return;
-        statusLabel.textContent = "Void Warden awakens. Defeat it to claim a secret level key!";
-    }, 850);
+    const roomPlayer = room.querySelector<HTMLElement>(".portal-room-player");
+    if (roomPlayer) roomPlayer.style.transform = `translate(${playerX}px, ${playerY}px)`;
 }
 
-function exitSecretBossRoom(target: number) {
+function exitSecretBossRoom() {
     if (!gameActive || !portalTravelInProgress) return;
-    
-    // Grant the key for the secret level this portal leads to
-    if (secretBossDefeated && currentSecretPortalTarget) {
-        localStorage.setItem(`orbit-key-${currentSecretPortalTarget}`, "1");
-        if (currentSecretPortalTarget === "eclipse") localStorage.setItem("orbit-secret-unlocked", "1");
-        statusLabel.textContent = `Secret key for ${currentSecretPortalTarget} claimed! The secret level is now unlocked.`;
-    }
-    
-    playerX = Math.min(levels[currentLevel].length * TILE_WIDTH - playerWidth, 140 + target * TILE_WIDTH + PORTAL_SIZE + 24);
-    playerY = shipFlipped ? CEILING_Y : FLOOR_Y;
+    if (portalReturnX !== null) playerX = Math.max(20, Math.min(levels[currentLevel].length * TILE_WIDTH - playerWidth, portalReturnX + PORTAL_SIZE + 24));
+    playerY = FLOOR_Y;
     verticalSpeed = 0;
     jumpCount = 0;
     portalCooldownUntil = performance.now() + 900;
     portalTravelInProgress = false;
     secretBossRoomActive = false;
     secretBoss = null;
-    secretBossDefeated = false;
     currentSecretPortalTarget = null;
+    portalReturnX = null;
+    world.classList.remove("portal-boss-room-active");
     document.querySelector(".portal-key-room")?.remove();
     updatePlayerPosition();
 }
@@ -1522,7 +1557,10 @@ function moveDown(distance = 36) {
     playerY = Math.min(FLOOR_Y + 60, playerY + distance); verticalSpeed = 0; gameStarted = true; updatePlayerPosition();
 }
 function jump() {
-    if (portalTravelInProgress) return;
+    if (portalTravelInProgress) {
+        if (secretBossRoomActive && jumpCount < 2) { jumpCount++; verticalSpeed = jumpPower; }
+        return;
+    }
     if (jumpCount >= 2) return;
     const wasInFlipZone = isInGravityZone();
     jumpCount++;
@@ -1545,13 +1583,11 @@ function jump() {
 function startGameLoop() {
     if (!gameActive) return;
     animationFrame = requestAnimationFrame(startGameLoop);
-    if (portalTravelInProgress) { 
-        if (secretBossRoomActive && secretBoss && !secretBoss.defeated) {
-            updateSecretBossRoom();
-        }
-        updateTrail(); 
-        updatePlayerPosition(); 
-        return; 
+    if (portalTravelInProgress) {
+        if (secretBossRoomActive) updateSecretBossRoom();
+        updateTrail();
+        updatePlayerPosition();
+        return;
     }
     updateHeldMovement(); previousPlayerY = playerY;
     const inGravity = isInGravityZone();
@@ -1574,15 +1610,14 @@ function startGameLoop() {
     }
     if (shootingHeld || pressedKeys.has("e")) shoot();
     if (projectileTimer >= (rapidTimer > 0 ? 52 : reducedEffects ? 120 : 90)) { projectileTimer = 0; levelEnemies.forEach(fireProjectile); levelMiniBosses.forEach(fireMiniBossProjectile); if (boss && !boss.defeated) fireBossProjectile(); }
-trailMovementFrames = Math.max(0, trailMovementFrames - 1);
-    const moving = trailMovementFrames > 0 || pressedKeys.has("arrowleft") || pressedKeys.has("arrowright") || pressedKeys.has("a") || pressedKeys.has("d");
+    trailMovementFrames = Math.max(0, trailMovementFrames - 1);
+    const horizontal = pressedKeys.has("arrowleft") || pressedKeys.has("arrowright") || pressedKeys.has("a") || pressedKeys.has("d");
+    if (lastJumpDirection !== 0) { trailDirection = lastJumpDirection; trailActive = true; trailPositions = []; lastJumpDirection = 0; }
     const airborne = Math.abs(verticalSpeed) > .2;
-    // Only create trails when jumping left or right (not just moving or airborne)
-    const shouldTrail = lastJumpDirection !== 0 && (moving || airborne);
-    if (shouldTrail && trailTimer >= 1) { trailTimer = 0; createTrail(); }
-    // Reset jump direction after trail creation
-    if (shouldTrail) lastJumpDirection = 0;
-    updateProjectiles(); updateTrail(); updatePlayerPosition(); updatePowerupHud(); checkCollisions();
+    const shouldTrail = trailActive && horizontal && airborne;
+    if (shouldTrail && trailTimer >= 2) { trailTimer = 0; createTrail(true); }
+    updateTrail(shouldTrail);
+    updateProjectiles(); updatePlayerPosition(); updatePowerupHud(); checkCollisions();
 }
 
 function updatePlayerPosition() { playerLabel.style.transform = `translate(${playerX}px, ${playerY}px) rotate(${shipFlipped ? 180 : 0}deg)`; world.style.transform = `translateX(${-Math.max(0, playerX - 180)}px)`; levelLabel.textContent = `SECTOR 0${currentLevel + 1}`; }
@@ -1601,7 +1636,7 @@ function fireProjectile(enemy: Enemy) {
 }
 function fireBossProjectile() { if (!boss) return; const directionX = playerX + 24 - boss.x, directionY = playerY + 28 - boss.y, distance = Math.max(1, Math.hypot(directionX, directionY)), element = document.createElement("div"); element.className = "boss-projectile"; world.append(element); projectiles.push({ x: boss.x, y: boss.y + 50, vx: directionX / distance * 4.2, vy: directionY / distance * 4.2, element, owner: "enemy" }); }
 function fireMiniBossProjectile(miniBoss: MiniBoss) { if (miniBoss.defeated) return; const directionX = playerX + 24 - miniBoss.x, directionY = playerY + 28 - miniBoss.y, distance = Math.max(1, Math.hypot(directionX, directionY)), element = document.createElement("div"); element.className = "mini-projectile"; world.append(element); projectiles.push({ x: miniBoss.x, y: miniBoss.y + 36, vx: directionX / distance * 4.5, vy: directionY / distance * 4.5, element, owner: "enemy" }); }
-function createTrail() {
+function createTrail(visible = true) {
     const trail = trails[selectedTrail] ?? trails[0];
     if (trailElement.length === 0) {
         trailElement = Array.from({ length: 5 }, (_, index) => {
@@ -1614,18 +1649,18 @@ function createTrail() {
         });
     }
     trailElement.forEach((element) => element.style.setProperty("--trail-color", trail.color));
-    // Reset trail positions for new jump trail
-    trailPositions = [];
-    updateTrail();
-    // Animate trail particles fading in
-    trailElement.forEach((element) => {
-        element.style.opacity = "1";
-        element.style.transition = `opacity ${reducedEffects ? 80 : 150}ms ease-out, transform ${reducedEffects ? 80 : 150}ms ease-out`;
-    });
+    if (visible) { trailActive = true; trailTimer = 0; }
+    else { trailActive = false; trailPositions = []; }
+    updateTrail(visible);
 }
 
-function updateTrail() {
-    // The exhaust always anchors to the bottom of the ship art; inverted flight mirrors it upward.
+function updateTrail(visible = trailActive) {
+    if (!visible) {
+        trailActive = false;
+        trailElement.forEach((element) => { element.classList.remove("trail-active"); element.style.opacity = "0"; });
+        return;
+    }
+    trailElement.forEach((element) => element.classList.add("trail-active"));
     const anchor = { x: playerX + (playerWidth - 14) / 2, y: shipFlipped ? playerY + 2 : playerY + playerHeight - 2 };
     const last = trailPositions[0];
     if (last && anchor.x !== last.x) trailDirection = anchor.x > last.x ? 1 : -1;
@@ -1638,11 +1673,10 @@ function updateTrail() {
         element.classList.toggle("flipped-trail", shipFlipped);
         element.style.left = `${index === 0 ? anchor.x : tailX}px`;
         element.style.top = `${index === 0 ? anchor.y : tailY}px`;
-        // Fade out older particles
         element.style.opacity = `${Math.max(0.1, 1 - index * 0.2)}`;
     });
 }
-function updateProjectiles() { projectiles = projectiles.filter((projectile) => { projectile.x += projectile.vx; projectile.y += projectile.vy; projectile.element.style.transform = `translate(${projectile.x}px, ${projectile.y}px)`; const box = { x: projectile.x, y: projectile.y, width: 16, height: 16 }; const obstacle = levelObstacles.find((item) => intersects(box, item)); if (obstacle) { createSplash(projectile.x, projectile.y); projectile.element.remove(); return false; } if (projectile.owner === "player") { const enemy = levelEnemies.find((item) => !item.defeated && intersects(box, { x: item.x, y: item.y, width: 48, height: 48 })); if (enemy) { enemy.defeated = true; document.querySelectorAll(".enemy")[levelEnemies.indexOf(enemy)]?.classList.add("defeated"); projectile.element.remove(); statusLabel.textContent = "Cannon hit. Sentry disabled."; return false; } const miniBoss = levelMiniBosses.find((item) => !item.defeated && intersects(box, { x: item.x, y: item.y, width: 70, height: 70 })); if (miniBoss) { miniBoss.health--; projectile.element.remove(); if (miniBoss.health <= 0) { miniBoss.defeated = true; document.querySelectorAll(".mini-boss")[levelMiniBosses.indexOf(miniBoss)]?.classList.add("defeated"); statusLabel.textContent = "Cannon fire shattered the mini-boss."; } else statusLabel.textContent = `Cannon hit. ${miniBoss.health} hit remaining.`; return false; } if (boss && !boss.defeated && intersects(box, { x: boss.x, y: boss.y, width: 128, height: 150 })) { projectile.element.remove(); damageBoss(); return false; } if (secretBossRoomActive && secretBoss && !secretBoss.defeated && intersects(box, { x: secretBoss.x, y: secretBoss.y, width: 128, height: 150 })) { projectile.element.remove(); damageSecretBoss(); return false; } } else if (intersects(box, { x: playerX, y: playerY, width: playerWidth, height: playerHeight })) { projectile.element.remove(); if (shieldCharges > 0) { shieldCharges--; statusLabel.textContent = "Shield absorbed the impact."; return false; } showGameOver("A sentry round cracked your hull."); return false; } if (projectile.x < playerX - 700 || projectile.x > playerX + 700 || projectile.y < -100 || projectile.y > 500) { projectile.element.remove(); return false; } return true; }); }
+function updateProjectiles() { projectiles = projectiles.filter((projectile) => { projectile.x += projectile.vx; projectile.y += projectile.vy; projectile.element.style.transform = `translate(${projectile.x}px, ${projectile.y}px)`; const box = { x: projectile.x, y: projectile.y, width: 16, height: 16 }; const obstacle = secretBossRoomActive ? undefined : levelObstacles.find((item) => intersects(box, item)); if (obstacle) { createSplash(projectile.x, projectile.y); projectile.element.remove(); return false; } if (projectile.owner === "player") { const enemy = secretBossRoomActive ? undefined : levelEnemies.find((item) => !item.defeated && intersects(box, { x: item.x, y: item.y, width: 48, height: 48 })); if (enemy) { enemy.defeated = true; document.querySelectorAll(".enemy")[levelEnemies.indexOf(enemy)]?.classList.add("defeated"); projectile.element.remove(); statusLabel.textContent = "Cannon hit. Sentry disabled."; return false; } const miniBoss = secretBossRoomActive ? undefined : levelMiniBosses.find((item) => !item.defeated && intersects(box, { x: item.x, y: item.y, width: 70, height: 70 })); if (miniBoss) { miniBoss.health--; projectile.element.remove(); if (miniBoss.health <= 0) { miniBoss.defeated = true; document.querySelectorAll(".mini-boss")[levelMiniBosses.indexOf(miniBoss)]?.classList.add("defeated"); statusLabel.textContent = "Cannon fire shattered the mini-boss."; } else statusLabel.textContent = `Cannon hit. ${miniBoss.health} hit remaining.`; return false; } if (!secretBossRoomActive && boss && !boss.defeated && intersects(box, { x: boss.x, y: boss.y, width: 128, height: 150 })) { projectile.element.remove(); damageBoss(); return false; } if (secretBossRoomActive && secretBoss && !secretBoss.defeated && intersects(box, { x: secretBoss.x, y: secretBoss.y, width: 128, height: 150 })) { projectile.element.remove(); damageSecretBoss(); return false; } } else if (intersects(box, { x: playerX, y: playerY, width: playerWidth, height: playerHeight })) { projectile.element.remove(); if (shieldCharges > 0) { shieldCharges--; statusLabel.textContent = "Shield absorbed the impact."; return false; } showGameOver("A sentry round cracked your hull."); return false; } if (projectile.x < playerX - 700 || projectile.x > playerX + 700 || projectile.y < -100 || projectile.y > 500) { projectile.element.remove(); return false; } return true; }); }
 function createSplash(x: number, y: number) { const splash = document.createElement("div"); splash.className = "splash"; splash.style.left = `${x}px`; splash.style.top = `${y}px`; world.append(splash); window.setTimeout(() => splash.remove(), reducedEffects ? 180 : 350); }
 function intersects(first: Box, second: Box) { return first.x < second.x + second.width && first.x + first.width > second.x && first.y < second.y + second.height && first.y + first.height > second.y; }
 
@@ -1671,25 +1705,20 @@ levelPowerups.forEach((powerup, index) => { if (!powerup.collected && intersects
     // Handle secret portals - one per secret level, placed in specific levels
     const secretPortals = levels[currentLevel].secretPortals ?? [];
     secretPortals.forEach((portal, portalIndex) => {
-        const portalBox = { x: 140 + portal.index * TILE_WIDTH, y: PORTAL_Y, width: PORTAL_SIZE, height: PORTAL_SIZE };
-        // Only reveal when player is within 40px - very hard to find
-        const nearPortal = Math.abs(playerX - portalBox.x) < 40 && Math.abs(playerY - portalBox.y) < 40;
+        const portalBox = { x: 140 + portal.index * TILE_WIDTH, y: portal.y ?? PORTAL_Y, width: PORTAL_SIZE, height: PORTAL_SIZE };
+        const distance = Math.hypot(playerX + playerWidth / 2 - (portalBox.x + PORTAL_SIZE / 2), playerY + playerHeight / 2 - (portalBox.y + PORTAL_SIZE / 2));
         const portalElement = document.querySelector(`.secret-portal[data-portal-index="${portalIndex}"]`);
-        if (portalElement && nearPortal) {
-            portalElement.classList.remove("hidden");
-            portalElement.textContent = "⚡";
-        } else if (portalElement && !nearPortal) {
-            portalElement.classList.add("hidden");
-            portalElement.textContent = "";
+        if (portalElement) {
+            const visible = distance <= 50;
+            portalElement.classList.toggle("hidden", !visible);
+            portalElement.textContent = visible ? "⚡" : "";
         }
     });
-    
-    // Check secret portal collision
+
     if (!portalTravelInProgress && performance.now() >= portalCooldownUntil) {
-        secretPortals.some((portal, portalIndex) => {
-            const portalBox = { x: 140 + portal.index * TILE_WIDTH, y: PORTAL_Y, width: PORTAL_SIZE, height: PORTAL_SIZE };
+        secretPortals.some((portal) => {
+            const portalBox = { x: 140 + portal.index * TILE_WIDTH, y: portal.y ?? PORTAL_Y, width: PORTAL_SIZE, height: PORTAL_SIZE };
             if (!intersects(playerBox(), portalBox)) return false;
-            // Transport to secret boss room, passing the secretId
             startPortalTransit(portal.index, portal.secretId);
             return true;
         });
@@ -1751,6 +1780,8 @@ if (portalTravelInProgress) return;
             playerY = enemy.y - playerHeight;
             verticalSpeed = jumpPower * 0.58;
             jumpCount = 1;
+            playerLabel.classList.add("ground-pound");
+            window.setTimeout(() => playerLabel.classList.remove("ground-pound"), 180);
             statusLabel.textContent = inFlippedRoute ? "Dark sentry crushed. Ground pound dominates." : "Sentry disabled. Nice landing.";
             document.querySelectorAll(".enemy")[index]?.classList.add("defeated");
         } else if (touchingEnemy) {
@@ -1768,6 +1799,8 @@ if (portalTravelInProgress) return;
             playerY = miniBoss.y - playerHeight;
             verticalSpeed = jumpPower * (inFlippedRoute ? 0.75 : .62);
             jumpCount = 1;
+            playerLabel.classList.add("ground-pound");
+            window.setTimeout(() => playerLabel.classList.remove("ground-pound"), 180);
             document.querySelectorAll(".mini-boss")[index]?.classList.add("hit");
             window.setTimeout(() => document.querySelectorAll(".mini-boss")[index]?.classList.remove("hit"), 180);
             if (miniBoss.health <= 0) {
